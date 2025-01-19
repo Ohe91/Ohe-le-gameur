@@ -44,7 +44,8 @@ const sounds = {
     enemyShoot: new Audio('sounds/enemy-laser.mp3'),
     ambience: new Audio('sounds/ambience.mp3'),
     popboss: new Audio('sounds/popboss.mp3'),
-    hitboss: new Audio('sounds/hitboss.mp3')
+    hitboss: new Audio('sounds/hitboss.mp3'),
+    eliesHit: new Audio('sounds/elies-hit.mp3')
 };
 
 // Configuration des sons
@@ -57,6 +58,7 @@ sounds.powerUp.volume = 0.5;
 sounds.enemyShoot.volume = 0.5;
 sounds.popboss.volume = 0.6;
 sounds.hitboss.volume = 0.5;
+sounds.eliesHit.volume = 1.0;
 
 // État du son
 let isSoundMuted = false;
@@ -549,9 +551,14 @@ function updateBullets() {
             }
         } else if (checkCollision(bullet, player)) {
             player.health -= 10;
+            // Jouer le son spécifique pour Elies ou le son normal pour les autres
+            if (selectedCharacter === 'Elies') {
+                playSound('eliesHit');
+            } else {
+                playSound('hit');
+            }
             bullets.splice(i, 1);
-            // Jouer le son de hit
-            playSound('hit');
+            continue;
         }
         
         // Vérifier les collisions avec le boss
