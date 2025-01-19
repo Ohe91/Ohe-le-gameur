@@ -193,8 +193,9 @@ function updateEnemies() {
                         if (!gameOver) {
                             const availableCharacters = characters.filter(c => c !== selectedCharacter);
                             const randomCharacter = availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
+                            const spawnSide = Math.random() < 0.5 ? 'left' : 'right';
                             const newEnemy = {
-                                x: Math.random() < 0.5 ? 0 : canvas.width,
+                                x: spawnSide === 'left' ? -PLAYER_SIZE : canvas.width + PLAYER_SIZE,
                                 y: Math.random() * canvas.height,
                                 width: PLAYER_SIZE * 2,
                                 height: PLAYER_SIZE * 2,
@@ -204,6 +205,7 @@ function updateEnemies() {
                                 initial: randomCharacter[0],
                                 lastShot: Date.now()
                             };
+                            console.log('Spawning new enemy:', newEnemy);
                             enemies.push(newEnemy);
                         }
                     }, 1000);
@@ -219,8 +221,9 @@ function updateEnemies() {
     if (currentTime - lastEnemySpawn >= 30000 && !gameOver) {
         const availableCharacters = characters.filter(c => c !== selectedCharacter);
         const randomCharacter = availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
+        const spawnSide = Math.random() < 0.5 ? 'left' : 'right';
         const newEnemy = {
-            x: Math.random() < 0.5 ? 0 : canvas.width,
+            x: spawnSide === 'left' ? -PLAYER_SIZE : canvas.width + PLAYER_SIZE,
             y: Math.random() * canvas.height,
             width: PLAYER_SIZE * 2,
             height: PLAYER_SIZE * 2,
@@ -230,6 +233,7 @@ function updateEnemies() {
             initial: randomCharacter[0],
             lastShot: Date.now()
         };
+        console.log('Spawning periodic enemy:', newEnemy);
         enemies.push(newEnemy);
         lastEnemySpawn = currentTime;
     }
