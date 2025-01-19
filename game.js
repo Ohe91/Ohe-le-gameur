@@ -177,48 +177,39 @@ function updatePlayer() {
 }
 
 function updateEnemies() {
+    // Déplacement des ennemis
     enemies.forEach(enemy => {
-        if (enemy.health <= 0) return;
-        
-        // Changement aléatoire de direction
-        if (Math.random() < 0.02) {
-            enemy.moveDirection = {
-                x: Math.random() * 2 - 1,
-                y: Math.random() * 2 - 1
-            };
-        }
-        
-        // Mouvement autonome
-        enemy.x += enemy.moveDirection.x * ENEMY_SPEED;
-        enemy.y += enemy.moveDirection.y * ENEMY_SPEED;
-        
-        // Maintenir dans les limites
-        enemy.x = Math.max(PLAYER_SIZE, Math.min(canvas.width - PLAYER_SIZE, enemy.x));
-        enemy.y = Math.max(PLAYER_SIZE, Math.min(canvas.height - PLAYER_SIZE, enemy.y));
-        
-        // Si le joueur est proche, le poursuivre
         const dx = player.x - enemy.x;
         const dy = player.y - enemy.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
+        const distance = Math.sqrt(dx * dx + dy * dy);
         
-        if (dist < 200) {
-            enemy.moveDirection = {
-                x: dx / dist,
-                y: dy / dist
-            };
+        if (distance > 0) {
+            enemy.x += (dx / distance) * ENEMY_SPEED;
+            enemy.y += (dy / distance) * ENEMY_SPEED;
         }
         
-        // Tir automatique
-        if (Date.now() - enemy.lastShot > 2000) {
-            const angle = Math.atan2(player.y - enemy.y, player.x - enemy.x);
-            bullets.push({
-                x: enemy.x,
-                y: enemy.y,
-                dx: Math.cos(angle) * BULLET_SPEED,
-                dy: Math.sin(angle) * BULLET_SPEED,
-                isPlayerBullet: false
+        // Collision avec le joueur
+        if (checkCollision(enemy, player)) {
+            player.health -= 0.5; // Dégâts continus
+        }
+    });
+    
+    // Vérifier les collisions avec les balles
+    bullets.forEach((bullet, bulletIndex) => {
+        if (bullet.isPlayerBullet) {
+            enemies.forEach((enemy, enemyIndex) => {
+                if (checkCollision(bullet, enemy)) {
+                    bullets.splice(bulletIndex, 1);
+                    enemies.splice(enemyIndex, 1);
+                    score += 10;
+                    killCount++;
+                    
+                    // Spawn une banane tous les 5 kills
+                    if (killCount % 5 === 0) {
+                        spawnHealItem();
+                    }
+                }
             });
-            enemy.lastShot = Date.now();
         }
     });
 }
@@ -257,163 +248,185 @@ function checkCollision(bullet, target, bulletSize, targetSize) {
     return Math.hypot(bullet.x - target.x, bullet.y - target.y) < bulletSize + targetSize;
 }
 
-function updateGame() {
-    if (!gameStarted || gameOver) return;
-
-    // Vérifier l'augmentation de la difficulté
-    const currentTime = Date.now();
-    if (currentTime - lastDifficultyIncrease >= DIFFICULTY_INCREASE_INTERVAL) {
-        // Ajouter un nouvel ennemi
-        const availableCharacters = characters.filter(c => c !== selectedCharacter);
-        const randomCharacter = availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
-        const newEnemy = createEnemy(randomCharacter);
-        enemies.push(newEnemy);
-        lastDifficultyIncrease = currentTime;
-    }
-
-    // Mise à jour des positions des balles
-    for (let i = bullets.length - 1; i >= 0; i--) {
-        const bullet = bullets[i];
-        bullet.x += bullet.dx;
-        bullet.y += bullet.dy;
-
-        // Supprimer les balles hors de l'écran
-        if (bullet.x < 0 || bullet.x > canvas.width || bullet.y < 0 || bullet.y > canvas.height) {
-            bullets.splice(i, 1);
-            continue;
-        }
-
-        if (bullet.isPlayerBullet) {
-            // Collisions avec les ennemis
-            for (let j = enemies.length - 1; j >= 0; j--) {
-                const enemy = enemies[j];
-                const distance = Math.sqrt(
-                    Math.pow(bullet.x - enemy.x, 2) + 
-                    Math.pow(bullet.y - enemy.y, 2)
-                );
-                
-                if (distance < PLAYER_SIZE + BULLET_SIZE) {
-                    bullets.splice(i, 1);
-                    const damage = player.name === 'Flouzi' ? 34 : 50;
-                    enemy.health -= damage;
-                    
-                    if (enemy.health <= 0) {
-                        score += 100;
-                        enemies.splice(j, 1);
-                        
-                        // Programmer la réapparition
-                        setTimeout(() => {
-                            if (!gameOver) {
-                                const availableCharacters = characters.filter(c => c !== selectedCharacter);
-                                const randomCharacter = availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
-                                const newEnemy = createEnemy(randomCharacter);
-                                enemies.push(newEnemy);
-                            }
-                        }, ENEMY_RESPAWN_TIME);
-                    }
-                    break;
-                }
-            }
-        } else {
-            // Collisions avec le joueur
-            const distance = Math.sqrt(
-                Math.pow(bullet.x - player.x, 2) + 
-                Math.pow(bullet.y - player.y, 2)
-            );
-            
-            if (distance < PLAYER_SIZE + BULLET_SIZE) {
-                bullets.splice(i, 1);
-                player.health -= 10;
-                if (player.health <= 0) {
-                    gameOver = true;
-                    tryAgainButton.style.display = 'block';
-                    saveScore(player.name, score);
-                }
-            }
-        }
-    }
-
-    // Mise à jour des ennemis et gestion des collisions
-    for (let i = 0; i < enemies.length; i++) {
-        const enemy = enemies[i];
-        
-        // Mouvement des ennemis
-        const dx = enemy.moveDirection.x * ENEMY_SPEED;
-        const dy = enemy.moveDirection.y * ENEMY_SPEED;
-        
-        // Vérifier la collision avec le joueur
-        const distToPlayer = Math.sqrt(
-            Math.pow((enemy.x + dx) - player.x, 2) + 
-            Math.pow((enemy.y + dy) - player.y, 2)
-        );
-        
-        if (distToPlayer < PLAYER_SIZE * 2) {
-            // Collision avec le joueur, calculer le rebond
-            const angle = Math.atan2(enemy.y - player.y, enemy.x - player.x);
-            enemy.moveDirection.x = Math.cos(angle);
-            enemy.moveDirection.y = Math.sin(angle);
-            continue;
-        }
-        
-        // Vérifier les collisions avec les autres ennemis
-        let collision = false;
-        for (let j = 0; j < enemies.length; j++) {
-            if (i === j) continue;
-            const other = enemies[j];
-            const distToEnemy = Math.sqrt(
-                Math.pow((enemy.x + dx) - other.x, 2) + 
-                Math.pow((enemy.y + dy) - other.y, 2)
-            );
-            
-            if (distToEnemy < PLAYER_SIZE * 2) {
-                // Collision entre ennemis, calculer le rebond
-                const angle = Math.atan2(enemy.y - other.y, enemy.x - other.x);
-                enemy.moveDirection.x = Math.cos(angle);
-                enemy.moveDirection.y = Math.sin(angle);
-                collision = true;
-                break;
-            }
-        }
-        
-        if (!collision) {
-            // Appliquer le mouvement s'il n'y a pas de collision
-            enemy.x += dx;
-            enemy.y += dy;
-            
-            // Rebondir sur les bords
-            if (enemy.x <= PLAYER_SIZE || enemy.x >= canvas.width - PLAYER_SIZE) {
-                enemy.moveDirection.x *= -1;
-            }
-            if (enemy.y <= PLAYER_SIZE || enemy.y >= canvas.height - PLAYER_SIZE) {
-                enemy.moveDirection.y *= -1;
-            }
-        }
-
-        // Tir des ennemis
-        if (Date.now() - enemy.lastShot > 2000) {
-            const angle = Math.atan2(player.y - enemy.y, player.x - enemy.x);
-            bullets.push({
-                x: enemy.x,
-                y: enemy.y,
-                dx: Math.cos(angle) * BULLET_SPEED,
-                dy: Math.sin(angle) * BULLET_SPEED,
-                isPlayerBullet: false
-            });
-            enemy.lastShot = Date.now();
-        }
-    }
+function drawHealthBar() {
+    const barWidth = 200;
+    const barHeight = 20;
+    const x = (canvas.width - barWidth) / 2;
+    const y = 20;
+    
+    // Fond de la barre de vie
+    ctx.fillStyle = '#333';
+    ctx.fillRect(x, y, barWidth, barHeight);
+    
+    // Barre de vie
+    const healthPercent = player.health / 100;
+    let barColor;
+    
+    if (healthPercent > 0.6) barColor = '#2ecc71';
+    else if (healthPercent > 0.3) barColor = '#f1c40f';
+    else barColor = '#e74c3c';
+    
+    ctx.fillStyle = barColor;
+    ctx.fillRect(x, y, barWidth * healthPercent, barHeight);
+    
+    // Texte de la vie
+    ctx.fillStyle = '#fff';
+    ctx.font = '16px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${Math.ceil(player.health)} / 100`, x + barWidth/2, y + 15);
 }
 
-function spawnHealItem() {
-    const item = {
-        x: Math.random() * (canvas.width - 30),
-        y: Math.random() * (canvas.height - 30),
-        width: 30,
-        height: 30,
-        type: 'heal',
-        healAmount: 25
-    };
-    items.push(item);
+function gameLoop() {
+    if (!gameStarted) return;
+    
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    updatePlayer();
+    updateBullets();
+    updateEnemies();
+    
+    // Dessiner les éléments
+    drawPlayer();
+    drawBullets();
+    drawEnemies();
+    drawItems();
+    drawHealthBar();
+    
+    // Afficher le score
+    ctx.fillStyle = '#fff';
+    ctx.font = '24px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText(`Score: ${score}`, 20, 40);
+    
+    // Vérifier les collisions avec les items
+    checkItemCollision();
+    
+    if (player.health <= 0) {
+        showScoreboard();
+        return;
+    }
+    
+    requestAnimationFrame(gameLoop);
+}
+
+function drawPlayer() {
+    // Créer un chemin circulaire pour le clipping
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, PLAYER_SIZE, 0, Math.PI * 2);
+    ctx.clip();
+
+    // Dessiner l'image du personnage
+    const image = characterImages[player.name];
+    if (image.complete) {
+        const size = PLAYER_SIZE * 2;
+        ctx.drawImage(image, player.x - size/2, player.y - size/2, size, size);
+    } else {
+        // Fallback si l'image n'est pas chargée
+        ctx.fillStyle = player.color;
+        ctx.fill();
+        ctx.fillStyle = '#000';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(player.initial, player.x, player.y);
+    }
+    ctx.restore();
+    
+    // Barre de vie au-dessus du personnage
+    const healthBarWidth = PLAYER_SIZE * 2;
+    const healthBarHeight = 5;
+    const healthBarY = player.y - PLAYER_SIZE - 15;
+    
+    // Fond de la barre de vie
+    ctx.fillStyle = '#333';
+    ctx.fillRect(
+        player.x - healthBarWidth / 2,
+        healthBarY,
+        healthBarWidth,
+        healthBarHeight
+    );
+    
+    // Barre de vie
+    ctx.fillStyle = player.health > 30 ? '#0f0' : '#f00';
+    ctx.fillRect(
+        player.x - healthBarWidth / 2,
+        healthBarY,
+        healthBarWidth * (player.health / 100),
+        healthBarHeight
+    );
+    
+    // Nom du personnage
+    ctx.fillStyle = '#fff';
+    ctx.font = '12px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(player.name, player.x, healthBarY - 5);
+}
+
+function drawBullets() {
+    bullets.forEach(bullet => {
+        ctx.fillStyle = bullet.isPlayerBullet ? '#fff' : '#ff0';
+        ctx.beginPath();
+        ctx.arc(bullet.x, bullet.y, BULLET_SIZE, 0, Math.PI * 2);
+        ctx.fill();
+    });
+}
+
+function drawEnemies() {
+    enemies.forEach(enemy => {
+        if (enemy.health > 0) {
+            // Créer un chemin circulaire pour le clipping
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(enemy.x, enemy.y, PLAYER_SIZE, 0, Math.PI * 2);
+            ctx.clip();
+
+            // Dessiner l'image du personnage
+            const image = characterImages[enemy.name];
+            if (image.complete) {
+                const size = PLAYER_SIZE * 2;
+                ctx.drawImage(image, enemy.x - size/2, enemy.y - size/2, size, size);
+            } else {
+                // Fallback si l'image n'est pas chargée
+                ctx.fillStyle = enemy.color;
+                ctx.fill();
+                ctx.fillStyle = '#000';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(enemy.initial, enemy.x, enemy.y);
+            }
+            ctx.restore();
+            
+            // Barre de vie au-dessus du personnage
+            const healthBarWidth = PLAYER_SIZE * 2;
+            const healthBarHeight = 5;
+            const healthBarY = enemy.y - PLAYER_SIZE - 15;
+            
+            // Fond de la barre de vie
+            ctx.fillStyle = '#333';
+            ctx.fillRect(
+                enemy.x - healthBarWidth / 2,
+                healthBarY,
+                healthBarWidth,
+                healthBarHeight
+            );
+            
+            // Barre de vie
+            ctx.fillStyle = enemy.health > 30 ? '#0f0' : '#f00';
+            ctx.fillRect(
+                enemy.x - healthBarWidth / 2,
+                healthBarY,
+                healthBarWidth * (enemy.health / 100),
+                healthBarHeight
+            );
+            
+            // Nom du personnage
+            ctx.fillStyle = '#fff';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(enemy.name, enemy.x, healthBarY - 5);
+        }
+    });
 }
 
 function drawItems() {
@@ -447,132 +460,65 @@ function checkItemCollision() {
     });
 }
 
-function draw() {
-    // Effacement du canvas
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+function showScoreboard() {
+    const boardWidth = 400;
+    const boardHeight = 500;
+    const boardX = (canvas.width - boardWidth) / 2;
+    const boardY = (canvas.height - boardHeight) / 2;
     
-    // Dessin des balles
-    bullets.forEach(bullet => {
-        ctx.fillStyle = bullet.isPlayerBullet ? '#fff' : '#ff0';
-        ctx.beginPath();
-        ctx.arc(bullet.x, bullet.y, BULLET_SIZE, 0, Math.PI * 2);
-        ctx.fill();
-    });
+    // Fond du tableau
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
+    ctx.fillRect(boardX, boardY, boardWidth, boardHeight);
     
-    // Dessin du joueur
-    if (player.health > 0) {
-        drawCharacter(player);
-    }
+    // Bordure
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(boardX, boardY, boardWidth, boardHeight);
     
-    // Dessin des ennemis
-    enemies.forEach(enemy => {
-        if (enemy.health > 0) {
-            drawCharacter(enemy);
-        }
-    });
-    
-    // Dessin des items
-    drawItems();
-    
-    // Dessin du score
+    // Score actuel
     ctx.fillStyle = '#fff';
-    ctx.font = '24px Arial';
-    ctx.textAlign = 'left';
-    ctx.fillText(`Score: ${score}`, 10, 30);
-}
-
-function drawCharacter(character) {
-    // Créer un chemin circulaire pour le clipping
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(character.x, character.y, PLAYER_SIZE, 0, Math.PI * 2);
-    ctx.clip();
-
-    // Dessiner l'image du personnage
-    const image = characterImages[character.name];
-    if (image.complete) {
-        const size = PLAYER_SIZE * 2;
-        ctx.drawImage(image, character.x - size/2, character.y - size/2, size, size);
-    } else {
-        // Fallback si l'image n'est pas chargée
-        ctx.fillStyle = character.color;
-        ctx.fill();
-        ctx.fillStyle = '#000';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(character.initial, character.x, character.y);
-    }
-    ctx.restore();
-    
-    // Barre de vie au-dessus du personnage
-    const healthBarWidth = PLAYER_SIZE * 2;
-    const healthBarHeight = 5;
-    const healthBarY = character.y - PLAYER_SIZE - 15;
-    
-    // Fond de la barre de vie
-    ctx.fillStyle = '#333';
-    ctx.fillRect(
-        character.x - healthBarWidth / 2,
-        healthBarY,
-        healthBarWidth,
-        healthBarHeight
-    );
-    
-    // Barre de vie
-    ctx.fillStyle = character.health > 30 ? '#0f0' : '#f00';
-    ctx.fillRect(
-        character.x - healthBarWidth / 2,
-        healthBarY,
-        healthBarWidth * (character.health / 100),
-        healthBarHeight
-    );
-    
-    // Nom du personnage
-    ctx.fillStyle = '#fff';
-    ctx.font = '12px Arial';
+    ctx.font = 'bold 28px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText(character.name, character.x, healthBarY - 5);
-}
-
-function checkGameOver() {
-    if (player.health <= 0) {
-        return true;
-    }
+    ctx.fillText(`Score: ${score}`, boardX + boardWidth/2, boardY + 50);
     
-    const aliveEnemies = enemies.filter(enemy => enemy.health > 0);
-    if (aliveEnemies.length === 0) {
-        return true;
-    }
+    // Titre du tableau
+    ctx.font = 'bold 24px Arial';
+    ctx.fillText('Meilleurs Scores', boardX + boardWidth/2, boardY + 100);
     
-    return false;
-}
-
-function gameLoop() {
-    if (!gameStarted) return;
+    // En-têtes
+    ctx.font = '16px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText('Rang', boardX + 20, boardY + 140);
+    ctx.fillText('Joueur', boardX + 80, boardY + 140);
+    ctx.fillText('Score', boardX + 250, boardY + 140);
+    ctx.fillText('Date', boardX + 320, boardY + 140);
     
-    updatePlayer();
-    updateEnemies();
-    updateBullets();
-    updateGame();
-    draw();
-    checkItemCollision();
+    // Ligne de séparation
+    ctx.beginPath();
+    ctx.moveTo(boardX + 10, boardY + 150);
+    ctx.lineTo(boardX + boardWidth - 10, boardY + 150);
+    ctx.strokeStyle = '#fff';
+    ctx.stroke();
     
-    if (checkGameOver()) {
-        ctx.fillStyle = '#fff';
-        ctx.font = '48px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText(
-            player.health > 0 ? 'Victoire !' : 'Game Over',
-            canvas.width / 2,
-            canvas.height / 2
-        );
-        gameOver = true;
-        tryAgainButton.style.display = 'block';
-        return;
-    }
-    
-    requestAnimationFrame(gameLoop);
+    // Liste des scores
+    ctx.font = '16px Arial';
+    highScores.forEach((scoreData, index) => {
+        const y = boardY + 180 + index * 30;
+        const date = new Date(scoreData.date).toLocaleDateString();
+        
+        // Highlight du score actuel
+        if (scoreData.score === score && scoreData.name === player.name) {
+            ctx.fillStyle = '#f1c40f';
+        } else {
+            ctx.fillStyle = '#fff';
+        }
+        
+        ctx.textAlign = 'left';
+        ctx.fillText(`${index + 1}`, boardX + 20, y);
+        ctx.fillText(scoreData.name, boardX + 80, y);
+        ctx.fillText(scoreData.score, boardX + 250, y);
+        ctx.fillText(date, boardX + 320, y);
+    });
 }
 
 // Gestion des touches
@@ -649,192 +595,14 @@ function saveScore(playerName, score) {
     });
 }
 
-function drawHealthBar() {
-    const barWidth = canvas.width * 0.3; // 30% de la largeur de l'écran
-    const barHeight = 30;
-    const barX = (canvas.width - barWidth) / 2;
-    const barY = 20;
-    
-    // Fond de la barre
-    ctx.fillStyle = '#333';
-    ctx.fillRect(barX, barY, barWidth, barHeight);
-    
-    // Barre de vie
-    const healthPercent = player.health / 100;
-    let barColor;
-    if (healthPercent > 0.6) barColor = '#2ecc71';
-    else if (healthPercent > 0.3) barColor = '#f1c40f';
-    else barColor = '#e74c3c';
-    
-    ctx.fillStyle = barColor;
-    ctx.fillRect(barX, barY, barWidth * healthPercent, barHeight);
-    
-    // Bordure
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(barX, barY, barWidth, barHeight);
-    
-    // Texte
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 16px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText(`${player.health}/100`, barX + barWidth/2, barY + barHeight/2 + 5);
-}
-
-function drawScoreBoard() {
-    const boardWidth = 400;
-    const boardHeight = 500;
-    const boardX = (canvas.width - boardWidth) / 2;
-    const boardY = (canvas.height - boardHeight) / 2;
-    
-    // Fond du tableau
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
-    ctx.fillRect(boardX, boardY, boardWidth, boardHeight);
-    
-    // Bordure
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(boardX, boardY, boardWidth, boardHeight);
-    
-    // Score actuel
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 28px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText(`Score: ${score}`, boardX + boardWidth/2, boardY + 50);
-    
-    // Titre du tableau
-    ctx.font = 'bold 24px Arial';
-    ctx.fillText('Meilleurs Scores', boardX + boardWidth/2, boardY + 100);
-    
-    // En-têtes
-    ctx.font = '16px Arial';
-    ctx.textAlign = 'left';
-    ctx.fillText('Rang', boardX + 20, boardY + 140);
-    ctx.fillText('Joueur', boardX + 80, boardY + 140);
-    ctx.fillText('Score', boardX + 250, boardY + 140);
-    ctx.fillText('Date', boardX + 320, boardY + 140);
-    
-    // Ligne de séparation
-    ctx.beginPath();
-    ctx.moveTo(boardX + 10, boardY + 150);
-    ctx.lineTo(boardX + boardWidth - 10, boardY + 150);
-    ctx.strokeStyle = '#fff';
-    ctx.stroke();
-    
-    // Liste des scores
-    ctx.font = '16px Arial';
-    highScores.forEach((scoreData, index) => {
-        const y = boardY + 180 + index * 30;
-        const date = new Date(scoreData.date).toLocaleDateString();
-        
-        // Highlight du score actuel
-        if (scoreData.score === score && scoreData.name === player.name) {
-            ctx.fillStyle = '#f1c40f';
-        } else {
-            ctx.fillStyle = '#fff';
-        }
-        
-        ctx.textAlign = 'left';
-        ctx.fillText(`${index + 1}`, boardX + 20, y);
-        ctx.fillText(scoreData.name, boardX + 80, y);
-        ctx.fillText(scoreData.score, boardX + 250, y);
-        ctx.fillText(date, boardX + 320, y);
-    });
-}
-
-function drawGame() {
-    // Effacer le canvas
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    if (gameOver) {
-        drawScoreBoard();
-        return;
-    }
-
-    // Dessiner le score
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 24px Arial';
-    ctx.textAlign = 'left';
-    ctx.fillText(`Score: ${score}`, 20, 40);
-
-    // Dessiner la barre de vie
-    if (player) {
-        drawHealthBar();
-    }
-
-    // Dessiner les personnages et les balles
-    if (player) drawCharacter(player);
-    enemies.forEach(enemy => drawCharacter(enemy));
-    bullets.forEach(bullet => {
-        ctx.fillStyle = bullet.isPlayerBullet ? '#fff' : '#ff0';
-        ctx.beginPath();
-        ctx.arc(bullet.x, bullet.y, BULLET_SIZE, 0, Math.PI * 2);
-        ctx.fill();
-    });
-    drawItems();
-}
-
-function updateEnemies() {
-    enemies.forEach(enemy => {
-        if (enemy.health <= 0) return;
-        
-        // Changement aléatoire de direction
-        if (Math.random() < 0.02) {
-            enemy.moveDirection = {
-                x: Math.random() * 2 - 1,
-                y: Math.random() * 2 - 1
-            };
-        }
-        
-        // Mouvement autonome
-        enemy.x += enemy.moveDirection.x * ENEMY_SPEED;
-        enemy.y += enemy.moveDirection.y * ENEMY_SPEED;
-        
-        // Maintenir dans les limites
-        enemy.x = Math.max(PLAYER_SIZE, Math.min(canvas.width - PLAYER_SIZE, enemy.x));
-        enemy.y = Math.max(PLAYER_SIZE, Math.min(canvas.height - PLAYER_SIZE, enemy.y));
-        
-        // Si le joueur est proche, le poursuivre
-        const dx = player.x - enemy.x;
-        const dy = player.y - enemy.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        
-        if (dist < 200) {
-            enemy.moveDirection = {
-                x: dx / dist,
-                y: dy / dist
-            };
-        }
-        
-        // Tir automatique
-        if (Date.now() - enemy.lastShot > 2000) {
-            const angle = Math.atan2(player.y - enemy.y, player.x - enemy.x);
-            bullets.push({
-                x: enemy.x,
-                y: enemy.y,
-                dx: Math.cos(angle) * BULLET_SPEED,
-                dy: Math.sin(angle) * BULLET_SPEED,
-                isPlayerBullet: false
-            });
-            enemy.lastShot = Date.now();
-        }
-    });
-    
-    // Vérifier les collisions avec les balles
-    bullets.forEach((bullet, bulletIndex) => {
-        enemies.forEach((enemy, enemyIndex) => {
-            if (checkCollision(bullet, enemy)) {
-                bullets.splice(bulletIndex, 1);
-                enemies.splice(enemyIndex, 1);
-                score += 10;
-                killCount++;
-                
-                // Spawn une banane tous les 5 kills
-                if (killCount % 5 === 0) {
-                    spawnHealItem();
-                }
-            }
-        });
-    });
+function spawnHealItem() {
+    const item = {
+        x: Math.random() * (canvas.width - 30),
+        y: Math.random() * (canvas.height - 30),
+        width: 30,
+        height: 30,
+        type: 'heal',
+        healAmount: 25
+    };
+    items.push(item);
 }
