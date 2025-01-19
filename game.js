@@ -154,6 +154,15 @@ const characterColors = {
 tryAgainButton.style.display = 'none';
 selectCharacterButton.style.display = 'none';
 
+// Gestionnaire d'événements pour le bouton de sélection du personnage
+selectCharacterButton.addEventListener('click', () => {
+    gameOver = false;
+    gameStarted = false;
+    characterSelect.classList.remove('hidden');
+    tryAgainButton.style.display = 'none';
+    selectCharacterButton.style.display = 'none';
+});
+
 function startGame() {
     gameStarted = true;
     characterSelect.classList.add('hidden');
