@@ -27,9 +27,8 @@ let selectedCharacter = '';
 let score = 0;
 let lastDifficultyIncrease = 0;
 let gameStartTime = 0;
-let items = [];
-let killCount = 0;
 let lastEnemySpawn = 0;
+let highScores = [];
 
 // Chargement des images
 const characterImages = {
@@ -61,10 +60,8 @@ function startGame() {
     gameOver = false;
     player.health = 100;
     score = 0;
-    killCount = 0;
     enemies = [];
     bullets = [];
-    items = [];
     lastEnemySpawn = Date.now();
     
     // Spawn initial enemies
@@ -82,10 +79,8 @@ function resetGame() {
     gameOver = false;
     player.health = 100;
     score = 0;
-    killCount = 0;
     enemies = [];
     bullets = [];
-    items = [];
     lastEnemySpawn = Date.now();
     tryAgainButton.style.display = 'none';
     
@@ -313,7 +308,6 @@ function gameLoop() {
     drawPlayer();
     drawBullets();
     drawEnemies();
-    drawItems();
     drawHealthBar();
     
     // Afficher le score
@@ -321,9 +315,6 @@ function gameLoop() {
     ctx.font = '24px Arial';
     ctx.textAlign = 'left';
     ctx.fillText(`Score: ${score}`, 20, 40);
-    
-    // Vérifier les collisions avec les items
-    checkItemCollision();
     
     if (player.health <= 0) {
         showScoreboard();
@@ -426,37 +417,6 @@ function drawEnemies() {
     });
 }
 
-function drawItems() {
-    items.forEach(item => {
-        if (item.type === 'heal') {
-            // Dessiner une banane
-            ctx.fillStyle = '#FFE135';
-            ctx.beginPath();
-            ctx.ellipse(item.x + 15, item.y + 15, 15, 7, Math.PI / 3, 0, 2 * Math.PI);
-            ctx.fill();
-            ctx.strokeStyle = '#000';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-        }
-    });
-}
-
-function checkItemCollision() {
-    items = items.filter(item => {
-        const dx = (player.x + player.width/2) - (item.x + item.width/2);
-        const dy = (player.y + player.height/2) - (item.y + item.height/2);
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        
-        if (distance < (player.width + item.width) / 2) {
-            if (item.type === 'heal') {
-                player.health = Math.min(100, player.health + item.healAmount);
-            }
-            return false;
-        }
-        return true;
-    });
-}
-
 function showScoreboard() {
     gameOver = true;
     const boardWidth = 400;
@@ -539,18 +499,6 @@ function saveScore(playerName, score) {
     });
 }
 
-function spawnHealItem() {
-    const item = {
-        x: Math.random() * (canvas.width - 30),
-        y: Math.random() * (canvas.height - 30),
-        width: 30,
-        height: 30,
-        type: 'heal',
-        healAmount: 25
-    };
-    items.push(item);
-}
-
 // Gestion des touches
 const keys = {};
 window.addEventListener('keydown', e => keys[e.key] = true);
@@ -599,7 +547,6 @@ function shootShotgun(startX, startY, targetX, targetY) {
 }
 
 // Chargement des meilleurs scores
-let highScores = [];
 fetch('scores.json')
     .then(response => response.json())
     .then(data => {
