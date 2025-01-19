@@ -20,15 +20,31 @@ const COLLISION_BOUNCE = 2; // Force de rebond lors des collisions
 
 let gameStarted = false;
 let gameOver = false;
+let score = 0;
+let scoreSubmitted = false;
+let backgroundImage = new Image();
+backgroundImage.src = 'images/space.jpg';
+let stars = [];
+
+// Création des étoiles pour le parallax
+for (let i = 0; i < 100; i++) {
+    stars.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        speed: 0.5 + Math.random() * 2,
+        size: 1 + Math.random() * 2
+    });
+}
+
 let player = null;
 let enemies = [];
 let bullets = [];
 let selectedCharacter = '';
-let score = 0;
 let lastDifficultyIncrease = 0;
 let gameStartTime = 0;
+let items = [];
+let killCount = 0;
 let lastEnemySpawn = 0;
-let highScores = [];
 
 // Chargement des images
 const characterImages = {
@@ -38,23 +54,13 @@ const characterImages = {
     'Flouzi': new Image()
 };
 
-// Attendre que toutes les images soient chargées
-Promise.all([
-    new Promise(resolve => characterImages['Ohe'].onload = resolve),
-    new Promise(resolve => characterImages['Bilel'].onload = resolve),
-    new Promise(resolve => characterImages['Abdel'].onload = resolve),
-    new Promise(resolve => characterImages['Flouzi'].onload = resolve)
-]).then(() => {
-    console.log('Toutes les images sont chargées');
-});
-
 characterImages['Ohe'].src = 'assets/Ohe.jpg';
 characterImages['Bilel'].src = 'assets/Bilel.jpg';
 characterImages['Abdel'].src = 'assets/Abdel.jpg';
 characterImages['Flouzi'].src = 'assets/Flouzi.jpg';
 
 const characters = ['Ohe', 'Bilel', 'Abdel', 'Flouzi'];
-const colors = {
+const characterColors = {
     'Ohe': '#FF4444',
     'Bilel': '#44FF44',
     'Abdel': '#4444FF',
@@ -70,8 +76,10 @@ function startGame() {
     gameOver = false;
     player.health = 100;
     score = 0;
+    killCount = 0;
     enemies = [];
     bullets = [];
+    items = [];
     lastEnemySpawn = Date.now();
     
     // Spawn initial enemies
@@ -86,23 +94,33 @@ function startGame() {
 }
 
 function resetGame() {
+    // Réinitialiser les variables du jeu
     gameOver = false;
+    gameStarted = true;
     player.health = 100;
-    score = 0;
+    player.x = canvas.width / 2;
+    player.y = canvas.height / 2;
     enemies = [];
     bullets = [];
-    lastEnemySpawn = Date.now();
+    items = [];
+    score = 0;
+    killCount = 0;
+    scoreSubmitted = false;
+    lastEnemySpawn = 0;
+    
+    // Cacher le bouton Try Again
     tryAgainButton.style.display = 'none';
     
-    // Spawn initial enemies
+    // Créer les ennemis initiaux
+    const availableCharacters = characters.filter(c => c !== selectedCharacter);
     for (let i = 0; i < 3; i++) {
-        const availableCharacters = characters.filter(c => c !== selectedCharacter);
         const randomCharacter = availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
-        const newEnemy = createEnemy(randomCharacter);
-        enemies.push(newEnemy);
+        const enemy = createEnemy(randomCharacter);
+        enemies.push(enemy);
     }
-    
-    gameLoop();
+
+    // Redémarrer la boucle de jeu
+    requestAnimationFrame(gameLoop);
 }
 
 tryAgainButton.addEventListener('click', resetGame);
@@ -115,7 +133,7 @@ function selectCharacter(character) {
     player = {
         x: canvas.width / 2,
         y: canvas.height / 2,
-        color: colors[character],
+        color: characterColors[character],
         name: character,
         initial: character[0],
         health: 100,
@@ -130,17 +148,18 @@ function selectCharacter(character) {
 }
 
 function createEnemy(enemyName) {
-    const spawnSide = Math.random() < 0.5 ? 'left' : 'right';
+    const side = Math.random() < 0.5 ? 'left' : 'right';
+    const x = side === 'left' ? -PLAYER_SIZE : canvas.width + PLAYER_SIZE;
+    const y = Math.random() * canvas.height;
+    
     return {
-        x: spawnSide === 'left' ? -PLAYER_SIZE : canvas.width + PLAYER_SIZE,
-        y: Math.random() * canvas.height,
-        width: PLAYER_SIZE * 2,
-        height: PLAYER_SIZE * 2,
-        health: 100,
+        x: x,
+        y: y,
         name: enemyName,
-        color: colors[enemyName],
-        initial: enemyName[0],
-        lastShot: Date.now()
+        color: characterColors[enemyName],
+        initial: enemyName[0].toUpperCase(),
+        lastShot: Date.now(),
+        health: 50  // 2 coups pour tuer (25 dégâts par balle)
     };
 }
 
@@ -154,15 +173,18 @@ function updatePlayer() {
 function updateEnemies() {
     // Déplacement des ennemis
     enemies.forEach(enemy => {
-        if (enemy.health <= 0) return; // Skip les ennemis morts
-
         const dx = player.x - enemy.x;
         const dy = player.y - enemy.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
         
-        if (distance > 0) {
+        // Ne pas se rapprocher trop près du joueur
+        if (distance > PLAYER_SIZE * 2) {
             enemy.x += (dx / distance) * ENEMY_SPEED;
             enemy.y += (dy / distance) * ENEMY_SPEED;
+        } else {
+            // Si trop près, s'éloigner légèrement
+            enemy.x -= (dx / distance) * ENEMY_SPEED * 0.5;
+            enemy.y -= (dy / distance) * ENEMY_SPEED * 0.5;
         }
         
         // Collision avec le joueur
@@ -192,8 +214,8 @@ function updateEnemies() {
                 const enemy = enemies[j];
                 if (checkCollision(bullet, enemy)) {
                     bullets.splice(i, 1);
-                    enemy.health -= 34; // 3 coups pour tuer un ennemi
-
+                    enemy.health -= 25; // 2 coups pour tuer
+                    
                     if (enemy.health <= 0) {
                         enemies.splice(j, 1);
                         score += 10;
@@ -204,7 +226,6 @@ function updateEnemies() {
                                 const availableCharacters = characters.filter(c => c !== selectedCharacter);
                                 const randomCharacter = availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
                                 const newEnemy = createEnemy(randomCharacter);
-                                console.log('Spawning new enemy:', newEnemy);
                                 enemies.push(newEnemy);
                             }
                         }, 1000);
@@ -213,18 +234,6 @@ function updateEnemies() {
                 }
             }
         }
-    }
-
-    // Ajouter un nouvel ennemi toutes les 30 secondes
-    const currentTime = Date.now();
-    if (!lastEnemySpawn) lastEnemySpawn = currentTime;
-    if (currentTime - lastEnemySpawn >= 30000 && !gameOver) {
-        const availableCharacters = characters.filter(c => c !== selectedCharacter);
-        const randomCharacter = availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
-        const newEnemy = createEnemy(randomCharacter);
-        console.log('Spawning periodic enemy:', newEnemy);
-        enemies.push(newEnemy);
-        lastEnemySpawn = currentTime;
     }
 }
 
@@ -240,26 +249,69 @@ function updateBullets() {
             continue;
         }
         
-        // Vérification des collisions avec les joueurs
+        // Vérification des collisions avec les ennemis
         if (bullet.isPlayerBullet) {
-            enemies.forEach(enemy => {
-                if (enemy.health <= 0) return;
-                if (checkCollision(bullet, enemy, BULLET_SIZE, PLAYER_SIZE)) {
-                    enemy.health -= 34; 
+            for (let j = enemies.length - 1; j >= 0; j--) {
+                const enemy = enemies[j];
+                if (checkCollision(bullet, enemy)) {
                     bullets.splice(i, 1);
+                    enemy.health -= 25; // 2 coups pour tuer
+                    console.log('Enemy hit! Health:', enemy.health); // Debug
+                    
+                    if (enemy.health <= 0) {
+                        enemies.splice(j, 1);
+                        score += 10;
+                        
+                        // Réapparition d'un nouvel ennemi après 1 seconde
+                        setTimeout(() => {
+                            if (!gameOver) {
+                                const availableCharacters = characters.filter(c => c !== selectedCharacter);
+                                const randomCharacter = availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
+                                const newEnemy = createEnemy(randomCharacter);
+                                enemies.push(newEnemy);
+                            }
+                        }, 1000);
+                    }
+                    break;
                 }
-            });
-        } else {
-            if (checkCollision(bullet, player, BULLET_SIZE, PLAYER_SIZE)) {
-                player.health -= 10;
-                bullets.splice(i, 1);
             }
+        } else if (checkCollision(bullet, player)) {
+            player.health -= 10;
+            bullets.splice(i, 1);
         }
     }
 }
 
-function checkCollision(bullet, target, bulletSize, targetSize) {
-    return Math.hypot(bullet.x - target.x, bullet.y - target.y) < bulletSize + targetSize;
+function checkCollision(obj1, obj2) {
+    const dx = obj1.x - obj2.x;
+    const dy = obj1.y - obj2.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    return distance < PLAYER_SIZE;
+}
+
+function updateBackground() {
+    // Mise à jour des étoiles
+    stars.forEach(star => {
+        star.y += star.speed;
+        if (star.y > canvas.height) {
+            star.y = 0;
+            star.x = Math.random() * canvas.width;
+        }
+    });
+}
+
+function drawBackground() {
+    // Fond spatial
+    ctx.fillStyle = '#000033';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Étoiles en parallax
+    ctx.fillStyle = '#FFF';
+    stars.forEach(star => {
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+        ctx.fill();
+    });
 }
 
 function drawHealthBar() {
@@ -291,36 +343,33 @@ function drawHealthBar() {
 }
 
 function gameLoop() {
-    if (!gameStarted) return;
+    if (!gameStarted || gameOver) return;
     
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
+    // Mise à jour
     updatePlayer();
-    updateBullets();
     updateEnemies();
+    updateBullets();
+    updateBackground();
     
-    // Dessiner les éléments
+    // Dessin
+    drawBackground();
     drawPlayer();
-    drawBullets();
     drawEnemies();
+    drawBullets();
     drawHealthBar();
     
     // Afficher le score
     ctx.fillStyle = '#fff';
-    ctx.font = '24px Arial';
+    ctx.font = '20px Arial';
     ctx.textAlign = 'left';
-    ctx.fillText(`Score: ${score}`, 20, 40);
+    ctx.fillText(`Score: ${score}`, 10, 30);
     
     if (player.health <= 0) {
         showScoreboard();
-        saveScore(player.name, score);
         return;
     }
     
-    if (!gameOver) {
-        requestAnimationFrame(gameLoop);
-    }
+    requestAnimationFrame(gameLoop);
 }
 
 function drawPlayer() {
@@ -332,7 +381,7 @@ function drawPlayer() {
 
     // Dessiner l'image du personnage
     const image = characterImages[player.name];
-    if (image && image.complete) {
+    if (image.complete) {
         const size = PLAYER_SIZE * 2;
         ctx.drawImage(image, player.x - size/2, player.y - size/2, size, size);
     } else {
@@ -387,52 +436,89 @@ function drawBullets() {
 
 function drawEnemies() {
     enemies.forEach(enemy => {
-        if (enemy.health <= 0) return; // Ne pas dessiner les ennemis morts
+        if (enemy.health > 0) {
+            // Créer un chemin circulaire pour le clipping
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(enemy.x, enemy.y, PLAYER_SIZE, 0, Math.PI * 2);
+            ctx.clip();
 
-        // Dessiner le cercle de base
-        ctx.beginPath();
-        ctx.arc(enemy.x, enemy.y, PLAYER_SIZE, 0, Math.PI * 2);
-        ctx.fillStyle = enemy.color;
-        ctx.fill();
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 2;
-        ctx.stroke();
+            // Dessiner l'image du personnage
+            const image = characterImages[enemy.name];
+            if (image.complete) {
+                const size = PLAYER_SIZE * 2;
+                ctx.drawImage(image, enemy.x - size/2, enemy.y - size/2, size, size);
+            } else {
+                // Fallback si l'image n'est pas chargée
+                ctx.fillStyle = enemy.color;
+                ctx.fill();
+                ctx.fillStyle = '#000';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(enemy.initial, enemy.x, enemy.y);
+            }
+            ctx.restore();
+            
+            // Barre de vie au-dessus du personnage
+            const healthBarWidth = PLAYER_SIZE * 2;
+            const healthBarHeight = 5;
+            const healthBarY = enemy.y - PLAYER_SIZE - 15;
+            
+            // Fond de la barre de vie
+            ctx.fillStyle = '#333';
+            ctx.fillRect(
+                enemy.x - healthBarWidth / 2,
+                healthBarY,
+                healthBarWidth,
+                healthBarHeight
+            );
+            
+            // Barre de vie
+            ctx.fillStyle = enemy.health > 30 ? '#0f0' : '#f00';
+            ctx.fillRect(
+                enemy.x - healthBarWidth / 2,
+                healthBarY,
+                healthBarWidth * (enemy.health / 50),
+                healthBarHeight
+            );
+            
+            // Nom du personnage
+            ctx.fillStyle = '#fff';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(enemy.name, enemy.x, healthBarY - 5);
+        }
+    });
+}
 
-        // Dessiner l'initiale
-        ctx.fillStyle = '#000';
-        ctx.font = 'bold 20px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(enemy.initial, enemy.x, enemy.y);
+function drawItems() {
+    items.forEach(item => {
+        if (item.type === 'heal') {
+            // Dessiner une banane
+            ctx.fillStyle = '#FFE135';
+            ctx.beginPath();
+            ctx.ellipse(item.x + 15, item.y + 15, 15, 7, Math.PI / 3, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+    });
+}
+
+function checkItemCollision() {
+    items = items.filter(item => {
+        const dx = (player.x + player.width/2) - (item.x + item.width/2);
+        const dy = (player.y + player.height/2) - (item.y + item.height/2);
+        const distance = Math.sqrt(dx * dx + dy * dy);
         
-        // Barre de vie au-dessus du personnage
-        const healthBarWidth = PLAYER_SIZE * 2;
-        const healthBarHeight = 5;
-        const healthBarY = enemy.y - PLAYER_SIZE - 15;
-        
-        // Fond de la barre de vie
-        ctx.fillStyle = '#333';
-        ctx.fillRect(
-            enemy.x - healthBarWidth / 2,
-            healthBarY,
-            healthBarWidth,
-            healthBarHeight
-        );
-        
-        // Barre de vie
-        ctx.fillStyle = enemy.health > 30 ? '#0f0' : '#f00';
-        ctx.fillRect(
-            enemy.x - healthBarWidth / 2,
-            healthBarY,
-            healthBarWidth * (enemy.health / 100),
-            healthBarHeight
-        );
-        
-        // Nom du personnage
-        ctx.fillStyle = '#fff';
-        ctx.font = '12px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText(enemy.name, enemy.x, healthBarY - 5);
+        if (distance < (player.width + item.width) / 2) {
+            if (item.type === 'heal') {
+                player.health = Math.min(100, player.health + item.healAmount);
+            }
+            return false;
+        }
+        return true;
     });
 }
 
@@ -477,6 +563,12 @@ function showScoreboard() {
     ctx.strokeStyle = '#fff';
     ctx.stroke();
     
+    // Sauvegarder le score avant d'afficher la liste
+    if (!scoreSubmitted) {
+        saveScore(player.name, score);
+        scoreSubmitted = true;
+    }
+    
     // Liste des scores
     ctx.font = '16px Arial';
     highScores.forEach((scoreData, index) => {
@@ -497,8 +589,7 @@ function showScoreboard() {
         ctx.fillText(date, boardX + 320, y);
     });
 
-    // Sauvegarder le score et afficher le bouton Try Again
-    saveScore(player.name, score);
+    // Afficher le bouton Try Again
     tryAgainButton.style.display = 'block';
 }
 
@@ -516,6 +607,18 @@ function saveScore(playerName, score) {
     }).catch(error => {
         console.error('Erreur lors de la sauvegarde des scores:', error);
     });
+}
+
+function spawnHealItem() {
+    const item = {
+        x: Math.random() * (canvas.width - 30),
+        y: Math.random() * (canvas.height - 30),
+        width: 30,
+        height: 30,
+        type: 'heal',
+        healAmount: 25
+    };
+    items.push(item);
 }
 
 // Gestion des touches
@@ -566,6 +669,7 @@ function shootShotgun(startX, startY, targetX, targetY) {
 }
 
 // Chargement des meilleurs scores
+let highScores = [];
 fetch('scores.json')
     .then(response => response.json())
     .then(data => {
