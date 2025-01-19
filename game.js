@@ -65,22 +65,13 @@ function startGame() {
     enemies = [];
     bullets = [];
     items = [];
+    lastEnemySpawn = Date.now();
     
     // Spawn initial enemies
     for (let i = 0; i < 3; i++) {
         const availableCharacters = characters.filter(c => c !== selectedCharacter);
         const randomCharacter = availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
-        const newEnemy = {
-            x: Math.random() < 0.5 ? 0 : canvas.width,
-            y: Math.random() * canvas.height,
-            width: PLAYER_SIZE * 2,
-            height: PLAYER_SIZE * 2,
-            health: 100,
-            name: randomCharacter,
-            lastShot: 0,
-            color: '#ff0000',
-            initial: randomCharacter[0]
-        };
+        const newEnemy = createEnemy(randomCharacter);
         enemies.push(newEnemy);
     }
     
@@ -102,17 +93,7 @@ function resetGame() {
     for (let i = 0; i < 3; i++) {
         const availableCharacters = characters.filter(c => c !== selectedCharacter);
         const randomCharacter = availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
-        const newEnemy = {
-            x: Math.random() < 0.5 ? 0 : canvas.width,
-            y: Math.random() * canvas.height,
-            width: PLAYER_SIZE * 2,
-            height: PLAYER_SIZE * 2,
-            health: 100,
-            name: randomCharacter,
-            lastShot: 0,
-            color: '#ff0000',
-            initial: randomCharacter[0]
-        };
+        const newEnemy = createEnemy(randomCharacter);
         enemies.push(newEnemy);
     }
     
@@ -144,50 +125,15 @@ function selectCharacter(character) {
 }
 
 function createEnemy(enemyName) {
-    // Trouver une position valide pour l'ennemi (loin du joueur et des autres ennemis)
-    let x, y;
-    let validPosition = false;
-    
-    while (!validPosition) {
-        x = Math.random() * (canvas.width - PLAYER_SIZE * 2) + PLAYER_SIZE;
-        y = Math.random() * (canvas.height - PLAYER_SIZE * 2) + PLAYER_SIZE;
-        
-        // Vérifier la distance avec le joueur
-        if (player) {
-            const distToPlayer = Math.sqrt(
-                Math.pow(x - player.x, 2) + 
-                Math.pow(y - player.y, 2)
-            );
-            if (distToPlayer < PLAYER_SIZE * 4) continue;
-        }
-        
-        // Vérifier la distance avec les autres ennemis
-        let tooClose = false;
-        for (const enemy of enemies) {
-            const distToEnemy = Math.sqrt(
-                Math.pow(x - enemy.x, 2) + 
-                Math.pow(y - enemy.y, 2)
-            );
-            if (distToEnemy < PLAYER_SIZE * 3) {
-                tooClose = true;
-                break;
-            }
-        }
-        
-        if (!tooClose) validPosition = true;
-    }
-    
     return {
-        x: x,
-        y: y,
-        dx: 0,
-        dy: 0,
-        color: colors[enemyName],
-        name: enemyName,
-        initial: enemyName[0],
+        x: Math.random() < 0.5 ? 0 : canvas.width,
+        y: Math.random() * canvas.height,
         health: 100,
+        name: enemyName,
+        color: colors[enemyName],
+        initial: enemyName[0],
         lastShot: 0,
-        moveDirection: { 
+        moveDirection: {
             x: Math.random() * 2 - 1,
             y: Math.random() * 2 - 1
         }
@@ -234,12 +180,14 @@ function updateEnemies() {
     });
     
     // Vérifier les collisions avec les balles
-    bullets.forEach((bullet, bulletIndex) => {
+    for (let i = bullets.length - 1; i >= 0; i--) {
+        const bullet = bullets[i];
         if (bullet.isPlayerBullet) {
-            enemies.forEach((enemy, enemyIndex) => {
+            for (let j = enemies.length - 1; j >= 0; j--) {
+                const enemy = enemies[j];
                 if (checkCollision(bullet, enemy)) {
-                    bullets.splice(bulletIndex, 1);
-                    enemies.splice(enemyIndex, 1);
+                    bullets.splice(i, 1);
+                    enemies.splice(j, 1);
                     score += 10;
                     killCount++;
                     
@@ -253,24 +201,16 @@ function updateEnemies() {
                         if (!gameOver) {
                             const availableCharacters = characters.filter(c => c !== selectedCharacter);
                             const randomCharacter = availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
-                            const newEnemy = {
-                                x: Math.random() < 0.5 ? 0 : canvas.width,
-                                y: Math.random() * canvas.height,
-                                width: PLAYER_SIZE * 2,
-                                height: PLAYER_SIZE * 2,
-                                health: 100,
-                                name: randomCharacter,
-                                lastShot: 0,
-                                color: '#ff0000',
-                                initial: randomCharacter[0]
-                            };
+                            const newEnemy = createEnemy(randomCharacter);
                             enemies.push(newEnemy);
                         }
                     }, 1000);
+                    
+                    break;
                 }
-            });
+            }
         }
-    });
+    }
 
     // Ajouter un nouvel ennemi toutes les 30 secondes
     const currentTime = Date.now();
@@ -278,17 +218,7 @@ function updateEnemies() {
     if (currentTime - lastEnemySpawn >= 30000 && !gameOver) {
         const availableCharacters = characters.filter(c => c !== selectedCharacter);
         const randomCharacter = availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
-        const newEnemy = {
-            x: Math.random() < 0.5 ? 0 : canvas.width,
-            y: Math.random() * canvas.height,
-            width: PLAYER_SIZE * 2,
-            height: PLAYER_SIZE * 2,
-            health: 100,
-            name: randomCharacter,
-            lastShot: 0,
-            color: '#ff0000',
-            initial: randomCharacter[0]
-        };
+        const newEnemy = createEnemy(randomCharacter);
         enemies.push(newEnemy);
         lastEnemySpawn = currentTime;
     }
