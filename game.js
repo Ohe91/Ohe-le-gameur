@@ -38,6 +38,16 @@ const characterImages = {
     'Flouzi': new Image()
 };
 
+// Attendre que toutes les images soient chargées
+Promise.all([
+    new Promise(resolve => characterImages['Ohe'].onload = resolve),
+    new Promise(resolve => characterImages['Bilel'].onload = resolve),
+    new Promise(resolve => characterImages['Abdel'].onload = resolve),
+    new Promise(resolve => characterImages['Flouzi'].onload = resolve)
+]).then(() => {
+    console.log('Toutes les images sont chargées');
+});
+
 characterImages['Ohe'].src = 'assets/Ohe.jpg';
 characterImages['Bilel'].src = 'assets/Bilel.jpg';
 characterImages['Abdel'].src = 'assets/Abdel.jpg';
@@ -371,27 +381,21 @@ function drawBullets() {
 
 function drawEnemies() {
     enemies.forEach(enemy => {
-        // Créer un chemin circulaire pour le clipping
-        ctx.save();
+        // Dessiner le cercle de base
         ctx.beginPath();
         ctx.arc(enemy.x, enemy.y, PLAYER_SIZE, 0, Math.PI * 2);
-        ctx.clip();
+        ctx.fillStyle = enemy.color;
+        ctx.fill();
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
+        ctx.stroke();
 
-        // Dessiner l'image du personnage
-        const image = characterImages[enemy.name];
-        if (image && image.complete) {
-            const size = PLAYER_SIZE * 2;
-            ctx.drawImage(image, enemy.x - size/2, enemy.y - size/2, size, size);
-        } else {
-            // Fallback si l'image n'est pas chargée
-            ctx.fillStyle = enemy.color;
-            ctx.fill();
-            ctx.fillStyle = '#000';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(enemy.initial, enemy.x, enemy.y);
-        }
-        ctx.restore();
+        // Dessiner l'initiale
+        ctx.fillStyle = '#000';
+        ctx.font = 'bold 20px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(enemy.initial, enemy.x, enemy.y);
         
         // Barre de vie au-dessus du personnage
         const healthBarWidth = PLAYER_SIZE * 2;
