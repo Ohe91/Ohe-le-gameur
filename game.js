@@ -120,8 +120,9 @@ function selectCharacter(character) {
 }
 
 function createEnemy(enemyName) {
-    const enemy = {
-        x: Math.random() < 0.5 ? 0 : canvas.width,
+    const spawnSide = Math.random() < 0.5 ? 'left' : 'right';
+    return {
+        x: spawnSide === 'left' ? -PLAYER_SIZE : canvas.width + PLAYER_SIZE,
         y: Math.random() * canvas.height,
         width: PLAYER_SIZE * 2,
         height: PLAYER_SIZE * 2,
@@ -129,14 +130,8 @@ function createEnemy(enemyName) {
         name: enemyName,
         color: colors[enemyName],
         initial: enemyName[0],
-        lastShot: 0,
-        moveDirection: {
-            x: Math.random() * 2 - 1,
-            y: Math.random() * 2 - 1
-        }
+        lastShot: Date.now()
     };
-    console.log("Created enemy:", enemy); // Debug log
-    return enemy;
 }
 
 function updatePlayer() {
@@ -193,18 +188,7 @@ function updateEnemies() {
                         if (!gameOver) {
                             const availableCharacters = characters.filter(c => c !== selectedCharacter);
                             const randomCharacter = availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
-                            const spawnSide = Math.random() < 0.5 ? 'left' : 'right';
-                            const newEnemy = {
-                                x: spawnSide === 'left' ? -PLAYER_SIZE : canvas.width + PLAYER_SIZE,
-                                y: Math.random() * canvas.height,
-                                width: PLAYER_SIZE * 2,
-                                height: PLAYER_SIZE * 2,
-                                health: 100,
-                                name: randomCharacter,
-                                color: colors[randomCharacter],
-                                initial: randomCharacter[0],
-                                lastShot: Date.now()
-                            };
+                            const newEnemy = createEnemy(randomCharacter);
                             console.log('Spawning new enemy:', newEnemy);
                             enemies.push(newEnemy);
                         }
@@ -221,18 +205,7 @@ function updateEnemies() {
     if (currentTime - lastEnemySpawn >= 30000 && !gameOver) {
         const availableCharacters = characters.filter(c => c !== selectedCharacter);
         const randomCharacter = availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
-        const spawnSide = Math.random() < 0.5 ? 'left' : 'right';
-        const newEnemy = {
-            x: spawnSide === 'left' ? -PLAYER_SIZE : canvas.width + PLAYER_SIZE,
-            y: Math.random() * canvas.height,
-            width: PLAYER_SIZE * 2,
-            height: PLAYER_SIZE * 2,
-            health: 100,
-            name: randomCharacter,
-            color: colors[randomCharacter],
-            initial: randomCharacter[0],
-            lastShot: Date.now()
-        };
+        const newEnemy = createEnemy(randomCharacter);
         console.log('Spawning periodic enemy:', newEnemy);
         enemies.push(newEnemy);
         lastEnemySpawn = currentTime;
@@ -398,58 +371,56 @@ function drawBullets() {
 
 function drawEnemies() {
     enemies.forEach(enemy => {
-        if (enemy.health > 0) {
-            // Créer un chemin circulaire pour le clipping
-            ctx.save();
-            ctx.beginPath();
-            ctx.arc(enemy.x, enemy.y, PLAYER_SIZE, 0, Math.PI * 2);
-            ctx.clip();
+        // Créer un chemin circulaire pour le clipping
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(enemy.x, enemy.y, PLAYER_SIZE, 0, Math.PI * 2);
+        ctx.clip();
 
-            // Dessiner l'image du personnage
-            const image = characterImages[enemy.name];
-            if (image && image.complete) {
-                const size = PLAYER_SIZE * 2;
-                ctx.drawImage(image, enemy.x - size/2, enemy.y - size/2, size, size);
-            } else {
-                // Fallback si l'image n'est pas chargée
-                ctx.fillStyle = enemy.color;
-                ctx.fill();
-                ctx.fillStyle = '#000';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(enemy.initial, enemy.x, enemy.y);
-            }
-            ctx.restore();
-            
-            // Barre de vie au-dessus du personnage
-            const healthBarWidth = PLAYER_SIZE * 2;
-            const healthBarHeight = 5;
-            const healthBarY = enemy.y - PLAYER_SIZE - 15;
-            
-            // Fond de la barre de vie
-            ctx.fillStyle = '#333';
-            ctx.fillRect(
-                enemy.x - healthBarWidth / 2,
-                healthBarY,
-                healthBarWidth,
-                healthBarHeight
-            );
-            
-            // Barre de vie
-            ctx.fillStyle = enemy.health > 30 ? '#0f0' : '#f00';
-            ctx.fillRect(
-                enemy.x - healthBarWidth / 2,
-                healthBarY,
-                healthBarWidth * (enemy.health / 100),
-                healthBarHeight
-            );
-            
-            // Nom du personnage
-            ctx.fillStyle = '#fff';
-            ctx.font = '12px Arial';
+        // Dessiner l'image du personnage
+        const image = characterImages[enemy.name];
+        if (image && image.complete) {
+            const size = PLAYER_SIZE * 2;
+            ctx.drawImage(image, enemy.x - size/2, enemy.y - size/2, size, size);
+        } else {
+            // Fallback si l'image n'est pas chargée
+            ctx.fillStyle = enemy.color;
+            ctx.fill();
+            ctx.fillStyle = '#000';
             ctx.textAlign = 'center';
-            ctx.fillText(enemy.name, enemy.x, healthBarY - 5);
+            ctx.textBaseline = 'middle';
+            ctx.fillText(enemy.initial, enemy.x, enemy.y);
         }
+        ctx.restore();
+        
+        // Barre de vie au-dessus du personnage
+        const healthBarWidth = PLAYER_SIZE * 2;
+        const healthBarHeight = 5;
+        const healthBarY = enemy.y - PLAYER_SIZE - 15;
+        
+        // Fond de la barre de vie
+        ctx.fillStyle = '#333';
+        ctx.fillRect(
+            enemy.x - healthBarWidth / 2,
+            healthBarY,
+            healthBarWidth,
+            healthBarHeight
+        );
+        
+        // Barre de vie
+        ctx.fillStyle = enemy.health > 30 ? '#0f0' : '#f00';
+        ctx.fillRect(
+            enemy.x - healthBarWidth / 2,
+            healthBarY,
+            healthBarWidth * (enemy.health / 100),
+            healthBarHeight
+        );
+        
+        // Nom du personnage
+        ctx.fillStyle = '#fff';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(enemy.name, enemy.x, healthBarY - 5);
     });
 }
 
