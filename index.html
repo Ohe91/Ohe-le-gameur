@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>2D Shooter Game</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
     <style>
         body {
             margin: 0;
@@ -11,92 +12,225 @@
             justify-content: center;
             align-items: center;
             height: 100vh;
-            background-color: #333;
-            font-family: Arial, sans-serif;
+            background-color: #1a1a2e;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         canvas {
-            border: 2px solid white;
+            border: 3px solid #4a90e2;
             background-color: #000;
+            box-shadow: 0 0 20px rgba(74, 144, 226, 0.3);
+            border-radius: 10px;
+            display: block;
+        }
+        #gameContainer {
+            position: relative;
+            display: inline-block;
         }
         #characterSelect {
-            position: absolute;
+            position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background-color: rgba(0, 0, 0, 0.9);
-            padding: 30px;
-            border-radius: 15px;
+            background: linear-gradient(135deg, rgba(26, 26, 46, 0.95) 0%, rgba(40, 40, 61, 0.95) 100%);
+            padding: 40px;
+            border-radius: 20px;
             text-align: center;
-            border: 2px solid #666;
+            border: none;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            max-width: 800px;
+            width: 90%;
+            z-index: 2000;
         }
         .hidden {
             display: none;
+            opacity: 0;
+            transform: translate(-50%, -60%);
+            transition: opacity 0.3s, transform 0.3s;
         }
         h2 {
-            color: white;
-            margin-bottom: 20px;
+            color: #4a90e2;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
         }
         .character-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 20px;
-            margin-bottom: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+            padding: 10px;
         }
         .character-card {
-            background-color: #444;
-            border-radius: 10px;
-            padding: 10px;
+            background: linear-gradient(145deg, #222236, #2a2a40);
+            border-radius: 15px;
+            padding: 20px;
             cursor: pointer;
-            transition: transform 0.2s, background-color 0.2s;
-            text-align: center;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .character-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, transparent, rgba(74, 144, 226, 0.1), transparent);
+            transform: translateX(-100%);
+            transition: 0.5s;
         }
         .character-card:hover {
-            transform: scale(1.05);
-            background-color: #555;
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+        }
+        .character-card:hover::before {
+            transform: translateX(100%);
         }
         .character-icon {
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
-            margin: 0 auto 10px;
+            width: 150px;
+            height: 150px;
+            border-radius: 20px;
+            margin: 0 auto 15px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 32px;
-            color: black;
-            font-weight: bold;
-            border: 3px solid white;
-            background-size: cover;
-            background-position: center;
+            position: relative;
             overflow: hidden;
+            border: 3px solid #4a90e2;
+            box-shadow: 0 5px 15px rgba(74, 144, 226, 0.3);
         }
         .character-icon img {
             width: 100%;
             height: 100%;
             object-fit: cover;
+            transition: transform 0.3s ease;
+        }
+        .character-card:hover .character-icon img {
+            transform: scale(1.1);
         }
         .character-card .name {
-            color: white;
-            font-size: 18px;
-            margin: 0;
+            color: #fff;
+            font-size: 1.2em;
+            margin: 10px 0 0;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            padding-bottom: 10px;
+        }
+        .character-card .name::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 50px;
+            height: 2px;
+            background: #4a90e2;
+            transition: width 0.3s ease;
+        }
+        .character-card:hover .name::after {
+            width: 80px;
+        }
+        #soundButton {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 36px;
+            height: 36px;
+            border-radius: 6px;
+            border: 2px solid #4CAF50;
+            cursor: pointer;
+            background-color: rgba(76, 175, 80, 0.15);
+            color: #4CAF50;
+            font-size: 20px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            box-shadow: 0 0 8px rgba(76, 175, 80, 0.2);
+            z-index: 1000;
+            backdrop-filter: blur(3px);
+            text-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
+        }
+        #soundButton:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 12px rgba(76, 175, 80, 0.4);
+            background-color: rgba(76, 175, 80, 0.25);
+        }
+        #soundButton.muted {
+            background-color: rgba(244, 67, 54, 0.15);
+            border-color: #f44336;
+            color: #f44336;
+            box-shadow: 0 0 8px rgba(244, 67, 54, 0.2);
+            text-shadow: 0 0 5px rgba(244, 67, 54, 0.5);
+        }
+        #soundButton.muted:hover {
+            background-color: rgba(244, 67, 54, 0.25);
+            box-shadow: 0 0 12px rgba(244, 67, 54, 0.4);
         }
         #tryAgainButton {
             display: none;
             position: absolute;
-            top: 70%;
+            top: 65%;
             left: 50%;
             transform: translate(-50%, -50%);
-            padding: 15px 30px;
-            font-size: 20px;
-            background-color: #4CAF50;
+            padding: 15px 40px;
+            font-size: 1.2em;
+            background: linear-gradient(45deg, #4a90e2, #357abd);
             color: white;
             border: none;
-            border-radius: 5px;
+            border-radius: 30px;
             cursor: pointer;
-            transition: background-color 0.3s;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 5px 15px rgba(74, 144, 226, 0.4);
         }
         #tryAgainButton:hover {
-            background-color: #45a049;
+            transform: translate(-50%, -52%);
+            box-shadow: 0 8px 20px rgba(74, 144, 226, 0.6);
+            background: linear-gradient(45deg, #357abd, #4a90e2);
+        }
+        #selectCharacterButton {
+            display: none;
+            position: absolute;
+            top: 75%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 15px 40px;
+            font-size: 1.2em;
+            background: linear-gradient(45deg, #4a90e2, #357abd);
+            color: white;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 5px 15px rgba(74, 144, 226, 0.4);
+        }
+        #selectCharacterButton:hover {
+            transform: translate(-50%, -52%);
+            box-shadow: 0 8px 20px rgba(74, 144, 226, 0.6);
+            background: linear-gradient(45deg, #357abd, #4a90e2);
+        }
+        #score, #highScore {
+            position: absolute;
+            color: #4a90e2;
+            font-size: 24px;
+            font-family: 'Orbitron', sans-serif;
+            text-shadow: 0 0 10px rgba(74, 144, 226, 0.5);
+            z-index: 1;
+            padding: 10px;
+            background-color: rgba(0, 0, 0, 0.5);
+            border-radius: 5px;
+            letter-spacing: 1px;
         }
     </style>
 </head>
@@ -128,10 +262,20 @@
                 </div>
                 <p class="name">Flouzi</p>
             </div>
+            <div class="character-card" onclick="selectCharacter('Elies')">
+                <div class="character-icon">
+                    <img src="assets/Elies.jpg" alt="Elies">
+                </div>
+                <p class="name">Elies</p>
+            </div>
         </div>
     </div>
-    <canvas id="gameCanvas"></canvas>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+        <button id="soundButton">♫</button>
+    </div>
     <button id="tryAgainButton">Try Again</button>
+    <button id="selectCharacterButton">Sélection du personnage</button>
     <script src="game.js"></script>
 </body>
 </html>
