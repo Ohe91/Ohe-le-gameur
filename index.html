@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2D Shooter Game</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #333;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            border: 2px solid white;
+            background-color: #000;
+        }
+        #characterSelect {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.9);
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            border: 2px solid #666;
+        }
+        .hidden {
+            display: none;
+        }
+        h2 {
+            color: white;
+            margin-bottom: 20px;
+        }
+        .character-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .character-card {
+            background-color: #444;
+            border-radius: 10px;
+            padding: 10px;
+            cursor: pointer;
+            transition: transform 0.2s, background-color 0.2s;
+            text-align: center;
+        }
+        .character-card:hover {
+            transform: scale(1.05);
+            background-color: #555;
+        }
+        .character-icon {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            margin: 0 auto 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            color: black;
+            font-weight: bold;
+            border: 3px solid white;
+            background-size: cover;
+            background-position: center;
+            overflow: hidden;
+        }
+        .character-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .character-card .name {
+            color: white;
+            font-size: 18px;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="characterSelect">
+        <h2>Choisissez votre personnage</h2>
+        <div class="character-grid">
+            <div class="character-card" onclick="selectCharacter('Ohe')">
+                <div class="character-icon">
+                    <img src="assets/Ohe.jpg" alt="Ohe">
+                </div>
+                <p class="name">Ohe</p>
+            </div>
+            <div class="character-card" onclick="selectCharacter('Bilel')">
+                <div class="character-icon">
+                    <img src="assets/Bilel.jpg" alt="Bilel">
+                </div>
+                <p class="name">Bilel</p>
+            </div>
+            <div class="character-card" onclick="selectCharacter('Abdel')">
+                <div class="character-icon">
+                    <img src="assets/Abdel.jpg" alt="Abdel">
+                </div>
+                <p class="name">Abdel</p>
+            </div>
+            <div class="character-card" onclick="selectCharacter('Flouzi')">
+                <div class="character-icon">
+                    <img src="assets/Flouzi.jpg" alt="Flouzi">
+                </div>
+                <p class="name">Flouzi</p>
+            </div>
+        </div>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+    <script src="game.js"></script>
+</body>
+</html>
