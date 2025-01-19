@@ -165,11 +165,10 @@ function updateEnemies() {
         
         // Collision avec le joueur
         if (checkCollision(enemy, player)) {
-            player.health -= 0.5; // Dégâts continus
+            player.health -= 0.5;
         }
 
         // Tir automatique
-        if (!enemy.lastShot) enemy.lastShot = 0;
         if (Date.now() - enemy.lastShot > 2000) {
             const angle = Math.atan2(player.y - enemy.y, player.x - enemy.x);
             bullets.push({
@@ -184,39 +183,37 @@ function updateEnemies() {
     });
     
     // Vérifier les collisions avec les balles
-    for (let i = bullets.length - 1; i >= 0; i--) {
-        const bullet = bullets[i];
+    bullets.forEach((bullet, bulletIndex) => {
         if (bullet.isPlayerBullet) {
-            for (let j = enemies.length - 1; j >= 0; j--) {
-                const enemy = enemies[j];
+            enemies.forEach((enemy, enemyIndex) => {
                 if (checkCollision(bullet, enemy)) {
-                    bullets.splice(i, 1);
-                    enemies.splice(j, 1);
+                    bullets.splice(bulletIndex, 1);
+                    enemies.splice(enemyIndex, 1);
                     score += 10;
-                    killCount++;
                     
-                    // Spawn une banane tous les 5 kills
-                    if (killCount % 5 === 0) {
-                        spawnHealItem();
-                    }
-
                     // Réapparition d'un nouvel ennemi après 1 seconde
                     setTimeout(() => {
                         if (!gameOver) {
                             const availableCharacters = characters.filter(c => c !== selectedCharacter);
                             const randomCharacter = availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
-                            console.log("Spawning new enemy:", randomCharacter); // Debug log
-                            const newEnemy = createEnemy(randomCharacter);
-                            console.log("New enemy:", newEnemy); // Debug log
+                            const newEnemy = {
+                                x: Math.random() < 0.5 ? 0 : canvas.width,
+                                y: Math.random() * canvas.height,
+                                width: PLAYER_SIZE * 2,
+                                height: PLAYER_SIZE * 2,
+                                health: 100,
+                                name: randomCharacter,
+                                color: colors[randomCharacter],
+                                initial: randomCharacter[0],
+                                lastShot: 0
+                            };
                             enemies.push(newEnemy);
                         }
                     }, 1000);
-                    
-                    break;
                 }
-            }
+            });
         }
-    }
+    });
 
     // Ajouter un nouvel ennemi toutes les 30 secondes
     const currentTime = Date.now();
@@ -224,7 +221,17 @@ function updateEnemies() {
     if (currentTime - lastEnemySpawn >= 30000 && !gameOver) {
         const availableCharacters = characters.filter(c => c !== selectedCharacter);
         const randomCharacter = availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
-        const newEnemy = createEnemy(randomCharacter);
+        const newEnemy = {
+            x: Math.random() < 0.5 ? 0 : canvas.width,
+            y: Math.random() * canvas.height,
+            width: PLAYER_SIZE * 2,
+            height: PLAYER_SIZE * 2,
+            health: 100,
+            name: randomCharacter,
+            color: colors[randomCharacter],
+            initial: randomCharacter[0],
+            lastShot: 0
+        };
         enemies.push(newEnemy);
         lastEnemySpawn = currentTime;
     }
@@ -393,29 +400,29 @@ function drawBullets() {
 
 function drawEnemies() {
     enemies.forEach(enemy => {
-        // Dessiner le corps de l'ennemi
-        ctx.fillStyle = enemy.color || colors[enemy.name];
-        ctx.fillRect(enemy.x - enemy.width/2, enemy.y - enemy.height/2, enemy.width, enemy.height);
-        
-        // Dessiner l'initiale
-        ctx.fillStyle = 'black';
-        ctx.font = '20px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(enemy.initial, enemy.x, enemy.y);
-        
-        // Dessiner la barre de vie
-        const healthBarWidth = 50;
-        const healthBarHeight = 5;
-        const healthPercentage = enemy.health / 100;
-        
-        // Fond de la barre de vie
-        ctx.fillStyle = 'red';
-        ctx.fillRect(enemy.x - healthBarWidth/2, enemy.y - enemy.height/2 - 10, healthBarWidth, healthBarHeight);
-        
-        // Barre de vie actuelle
-        ctx.fillStyle = 'green';
-        ctx.fillRect(enemy.x - healthBarWidth/2, enemy.y - enemy.height/2 - 10, healthBarWidth * healthPercentage, healthBarHeight);
+        if (enemy.health > 0) {
+            // Dessiner le corps de l'ennemi
+            ctx.fillStyle = enemy.color;
+            ctx.fillRect(enemy.x - enemy.width/2, enemy.y - enemy.height/2, enemy.width, enemy.height);
+            
+            // Dessiner l'initiale
+            ctx.fillStyle = 'black';
+            ctx.font = '20px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(enemy.initial, enemy.x, enemy.y);
+            
+            // Barre de vie
+            const healthBarWidth = 50;
+            const healthBarHeight = 5;
+            const healthPercentage = enemy.health / 100;
+            
+            ctx.fillStyle = 'red';
+            ctx.fillRect(enemy.x - healthBarWidth/2, enemy.y - enemy.height/2 - 10, healthBarWidth, healthBarHeight);
+            
+            ctx.fillStyle = 'green';
+            ctx.fillRect(enemy.x - healthBarWidth/2, enemy.y - enemy.height/2 - 10, healthBarWidth * healthPercentage, healthBarHeight);
+        }
     });
 }
 
