@@ -20,11 +20,26 @@ const COLLISION_BOUNCE = 2; // Force de rebond lors des collisions
 
 let gameStarted = false;
 let gameOver = false;
+let score = 0;
+let scoreSubmitted = false;
+let backgroundImage = new Image();
+backgroundImage.src = 'images/space.jpg';
+let stars = [];
+
+// Création des étoiles pour le parallax
+for (let i = 0; i < 100; i++) {
+    stars.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        speed: 0.5 + Math.random() * 2,
+        size: 1 + Math.random() * 2
+    });
+}
+
 let player = null;
 let enemies = [];
 let bullets = [];
 let selectedCharacter = '';
-let score = 0;
 let lastDifficultyIncrease = 0;
 let gameStartTime = 0;
 let items = [];
@@ -45,7 +60,7 @@ characterImages['Abdel'].src = 'assets/Abdel.jpg';
 characterImages['Flouzi'].src = 'assets/Flouzi.jpg';
 
 const characters = ['Ohe', 'Bilel', 'Abdel', 'Flouzi'];
-const colors = {
+const characterColors = {
     'Ohe': '#FF4444',
     'Bilel': '#44FF44',
     'Abdel': '#4444FF',
@@ -79,25 +94,33 @@ function startGame() {
 }
 
 function resetGame() {
+    // Réinitialiser les variables du jeu
     gameOver = false;
+    gameStarted = true;
     player.health = 100;
-    score = 0;
-    killCount = 0;
+    player.x = canvas.width / 2;
+    player.y = canvas.height / 2;
     enemies = [];
     bullets = [];
     items = [];
-    lastEnemySpawn = Date.now();
+    score = 0;
+    killCount = 0;
+    scoreSubmitted = false;
+    lastEnemySpawn = 0;
+    
+    // Cacher le bouton Try Again
     tryAgainButton.style.display = 'none';
     
-    // Spawn initial enemies
+    // Créer les ennemis initiaux
+    const availableCharacters = characters.filter(c => c !== selectedCharacter);
     for (let i = 0; i < 3; i++) {
-        const availableCharacters = characters.filter(c => c !== selectedCharacter);
         const randomCharacter = availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
-        const newEnemy = createEnemy(randomCharacter);
-        enemies.push(newEnemy);
+        const enemy = createEnemy(randomCharacter);
+        enemies.push(enemy);
     }
-    
-    gameLoop();
+
+    // Redémarrer la boucle de jeu
+    requestAnimationFrame(gameLoop);
 }
 
 tryAgainButton.addEventListener('click', resetGame);
@@ -110,7 +133,7 @@ function selectCharacter(character) {
     player = {
         x: canvas.width / 2,
         y: canvas.height / 2,
-        color: colors[character],
+        color: characterColors[character],
         name: character,
         initial: character[0],
         health: 100,
@@ -125,18 +148,18 @@ function selectCharacter(character) {
 }
 
 function createEnemy(enemyName) {
+    const side = Math.random() < 0.5 ? 'left' : 'right';
+    const x = side === 'left' ? -PLAYER_SIZE : canvas.width + PLAYER_SIZE;
+    const y = Math.random() * canvas.height;
+    
     return {
-        x: Math.random() < 0.5 ? 0 : canvas.width,
-        y: Math.random() * canvas.height,
-        health: 100,
+        x: x,
+        y: y,
         name: enemyName,
-        color: colors[enemyName],
-        initial: enemyName[0],
-        lastShot: 0,
-        moveDirection: {
-            x: Math.random() * 2 - 1,
-            y: Math.random() * 2 - 1
-        }
+        color: characterColors[enemyName],
+        initial: enemyName[0].toUpperCase(),
+        lastShot: Date.now(),
+        health: 50  // 2 coups pour tuer (25 dégâts par balle)
     };
 }
 
@@ -154,18 +177,22 @@ function updateEnemies() {
         const dy = player.y - enemy.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
         
-        if (distance > 0) {
+        // Ne pas se rapprocher trop près du joueur
+        if (distance > PLAYER_SIZE * 2) {
             enemy.x += (dx / distance) * ENEMY_SPEED;
             enemy.y += (dy / distance) * ENEMY_SPEED;
+        } else {
+            // Si trop près, s'éloigner légèrement
+            enemy.x -= (dx / distance) * ENEMY_SPEED * 0.5;
+            enemy.y -= (dy / distance) * ENEMY_SPEED * 0.5;
         }
         
         // Collision avec le joueur
         if (checkCollision(enemy, player)) {
-            player.health -= 0.5; // Dégâts continus
+            player.health -= 0.5;
         }
 
         // Tir automatique
-        if (!enemy.lastShot) enemy.lastShot = 0;
         if (Date.now() - enemy.lastShot > 2000) {
             const angle = Math.atan2(player.y - enemy.y, player.x - enemy.x);
             bullets.push({
@@ -187,40 +214,26 @@ function updateEnemies() {
                 const enemy = enemies[j];
                 if (checkCollision(bullet, enemy)) {
                     bullets.splice(i, 1);
-                    enemies.splice(j, 1);
-                    score += 10;
-                    killCount++;
+                    enemy.health -= 25; // 2 coups pour tuer
                     
-                    // Spawn une banane tous les 5 kills
-                    if (killCount % 5 === 0) {
-                        spawnHealItem();
+                    if (enemy.health <= 0) {
+                        enemies.splice(j, 1);
+                        score += 10;
+                        
+                        // Réapparition d'un nouvel ennemi après 1 seconde
+                        setTimeout(() => {
+                            if (!gameOver) {
+                                const availableCharacters = characters.filter(c => c !== selectedCharacter);
+                                const randomCharacter = availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
+                                const newEnemy = createEnemy(randomCharacter);
+                                enemies.push(newEnemy);
+                            }
+                        }, 1000);
                     }
-
-                    // Réapparition d'un nouvel ennemi après 1 seconde
-                    setTimeout(() => {
-                        if (!gameOver) {
-                            const availableCharacters = characters.filter(c => c !== selectedCharacter);
-                            const randomCharacter = availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
-                            const newEnemy = createEnemy(randomCharacter);
-                            enemies.push(newEnemy);
-                        }
-                    }, 1000);
-                    
                     break;
                 }
             }
         }
-    }
-
-    // Ajouter un nouvel ennemi toutes les 30 secondes
-    const currentTime = Date.now();
-    if (!lastEnemySpawn) lastEnemySpawn = currentTime;
-    if (currentTime - lastEnemySpawn >= 30000 && !gameOver) {
-        const availableCharacters = characters.filter(c => c !== selectedCharacter);
-        const randomCharacter = availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
-        const newEnemy = createEnemy(randomCharacter);
-        enemies.push(newEnemy);
-        lastEnemySpawn = currentTime;
     }
 }
 
@@ -236,26 +249,69 @@ function updateBullets() {
             continue;
         }
         
-        // Vérification des collisions avec les joueurs
+        // Vérification des collisions avec les ennemis
         if (bullet.isPlayerBullet) {
-            enemies.forEach(enemy => {
-                if (enemy.health <= 0) return;
-                if (checkCollision(bullet, enemy, BULLET_SIZE, PLAYER_SIZE)) {
-                    enemy.health -= 34; 
+            for (let j = enemies.length - 1; j >= 0; j--) {
+                const enemy = enemies[j];
+                if (checkCollision(bullet, enemy)) {
                     bullets.splice(i, 1);
+                    enemy.health -= 25; // 2 coups pour tuer
+                    console.log('Enemy hit! Health:', enemy.health); // Debug
+                    
+                    if (enemy.health <= 0) {
+                        enemies.splice(j, 1);
+                        score += 10;
+                        
+                        // Réapparition d'un nouvel ennemi après 1 seconde
+                        setTimeout(() => {
+                            if (!gameOver) {
+                                const availableCharacters = characters.filter(c => c !== selectedCharacter);
+                                const randomCharacter = availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
+                                const newEnemy = createEnemy(randomCharacter);
+                                enemies.push(newEnemy);
+                            }
+                        }, 1000);
+                    }
+                    break;
                 }
-            });
-        } else {
-            if (checkCollision(bullet, player, BULLET_SIZE, PLAYER_SIZE)) {
-                player.health -= 10;
-                bullets.splice(i, 1);
             }
+        } else if (checkCollision(bullet, player)) {
+            player.health -= 10;
+            bullets.splice(i, 1);
         }
     }
 }
 
-function checkCollision(bullet, target, bulletSize, targetSize) {
-    return Math.hypot(bullet.x - target.x, bullet.y - target.y) < bulletSize + targetSize;
+function checkCollision(obj1, obj2) {
+    const dx = obj1.x - obj2.x;
+    const dy = obj1.y - obj2.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    return distance < PLAYER_SIZE;
+}
+
+function updateBackground() {
+    // Mise à jour des étoiles
+    stars.forEach(star => {
+        star.y += star.speed;
+        if (star.y > canvas.height) {
+            star.y = 0;
+            star.x = Math.random() * canvas.width;
+        }
+    });
+}
+
+function drawBackground() {
+    // Fond spatial
+    ctx.fillStyle = '#000033';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Étoiles en parallax
+    ctx.fillStyle = '#FFF';
+    stars.forEach(star => {
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+        ctx.fill();
+    });
 }
 
 function drawHealthBar() {
@@ -287,40 +343,33 @@ function drawHealthBar() {
 }
 
 function gameLoop() {
-    if (!gameStarted) return;
+    if (!gameStarted || gameOver) return;
     
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
+    // Mise à jour
     updatePlayer();
-    updateBullets();
     updateEnemies();
+    updateBullets();
+    updateBackground();
     
-    // Dessiner les éléments
+    // Dessin
+    drawBackground();
     drawPlayer();
-    drawBullets();
     drawEnemies();
-    drawItems();
+    drawBullets();
     drawHealthBar();
     
     // Afficher le score
     ctx.fillStyle = '#fff';
-    ctx.font = '24px Arial';
+    ctx.font = '20px Arial';
     ctx.textAlign = 'left';
-    ctx.fillText(`Score: ${score}`, 20, 40);
-    
-    // Vérifier les collisions avec les items
-    checkItemCollision();
+    ctx.fillText(`Score: ${score}`, 10, 30);
     
     if (player.health <= 0) {
         showScoreboard();
-        saveScore(player.name, score);
         return;
     }
     
-    if (!gameOver) {
-        requestAnimationFrame(gameLoop);
-    }
+    requestAnimationFrame(gameLoop);
 }
 
 function drawPlayer() {
@@ -429,7 +478,7 @@ function drawEnemies() {
             ctx.fillRect(
                 enemy.x - healthBarWidth / 2,
                 healthBarY,
-                healthBarWidth * (enemy.health / 100),
+                healthBarWidth * (enemy.health / 50),
                 healthBarHeight
             );
             
@@ -514,6 +563,12 @@ function showScoreboard() {
     ctx.strokeStyle = '#fff';
     ctx.stroke();
     
+    // Sauvegarder le score avant d'afficher la liste
+    if (!scoreSubmitted) {
+        saveScore(player.name, score);
+        scoreSubmitted = true;
+    }
+    
     // Liste des scores
     ctx.font = '16px Arial';
     highScores.forEach((scoreData, index) => {
@@ -534,8 +589,7 @@ function showScoreboard() {
         ctx.fillText(date, boardX + 320, y);
     });
 
-    // Sauvegarder le score et afficher le bouton Try Again
-    saveScore(player.name, score);
+    // Afficher le bouton Try Again
     tryAgainButton.style.display = 'block';
 }
 
