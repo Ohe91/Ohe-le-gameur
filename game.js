@@ -26,6 +26,8 @@ let selectedCharacter = '';
 let score = 0;
 let lastDifficultyIncrease = 0;
 let gameStartTime = 0;
+let items = [];
+let killCount = 0;
 
 // Chargement des images
 const characterImages = {
@@ -402,6 +404,49 @@ function updateGame() {
     }
 }
 
+function spawnHealItem() {
+    const item = {
+        x: Math.random() * (canvas.width - 30),
+        y: Math.random() * (canvas.height - 30),
+        width: 30,
+        height: 30,
+        type: 'heal',
+        healAmount: 25
+    };
+    items.push(item);
+}
+
+function drawItems() {
+    items.forEach(item => {
+        if (item.type === 'heal') {
+            // Dessiner une banane
+            ctx.fillStyle = '#FFE135';
+            ctx.beginPath();
+            ctx.ellipse(item.x + 15, item.y + 15, 15, 7, Math.PI / 3, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+    });
+}
+
+function checkItemCollision() {
+    items = items.filter(item => {
+        const dx = (player.x + player.width/2) - (item.x + item.width/2);
+        const dy = (player.y + player.height/2) - (item.y + item.height/2);
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance < (player.width + item.width) / 2) {
+            if (item.type === 'heal') {
+                player.health = Math.min(100, player.health + item.healAmount);
+            }
+            return false;
+        }
+        return true;
+    });
+}
+
 function draw() {
     // Effacement du canvas
     ctx.fillStyle = '#000';
@@ -426,6 +471,9 @@ function draw() {
             drawCharacter(enemy);
         }
     });
+    
+    // Dessin des items
+    drawItems();
     
     // Dessin du score
     ctx.fillStyle = '#fff';
@@ -505,8 +553,10 @@ function gameLoop() {
     
     updatePlayer();
     updateEnemies();
+    updateBullets();
     updateGame();
-    drawGame();
+    draw();
+    checkItemCollision();
     
     if (checkGameOver()) {
         ctx.fillStyle = '#fff';
@@ -721,5 +771,70 @@ function drawGame() {
         ctx.beginPath();
         ctx.arc(bullet.x, bullet.y, BULLET_SIZE, 0, Math.PI * 2);
         ctx.fill();
+    });
+    drawItems();
+}
+
+function updateEnemies() {
+    enemies.forEach(enemy => {
+        if (enemy.health <= 0) return;
+        
+        // Changement aléatoire de direction
+        if (Math.random() < 0.02) {
+            enemy.moveDirection = {
+                x: Math.random() * 2 - 1,
+                y: Math.random() * 2 - 1
+            };
+        }
+        
+        // Mouvement autonome
+        enemy.x += enemy.moveDirection.x * ENEMY_SPEED;
+        enemy.y += enemy.moveDirection.y * ENEMY_SPEED;
+        
+        // Maintenir dans les limites
+        enemy.x = Math.max(PLAYER_SIZE, Math.min(canvas.width - PLAYER_SIZE, enemy.x));
+        enemy.y = Math.max(PLAYER_SIZE, Math.min(canvas.height - PLAYER_SIZE, enemy.y));
+        
+        // Si le joueur est proche, le poursuivre
+        const dx = player.x - enemy.x;
+        const dy = player.y - enemy.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        if (dist < 200) {
+            enemy.moveDirection = {
+                x: dx / dist,
+                y: dy / dist
+            };
+        }
+        
+        // Tir automatique
+        if (Date.now() - enemy.lastShot > 2000) {
+            const angle = Math.atan2(player.y - enemy.y, player.x - enemy.x);
+            bullets.push({
+                x: enemy.x,
+                y: enemy.y,
+                dx: Math.cos(angle) * BULLET_SPEED,
+                dy: Math.sin(angle) * BULLET_SPEED,
+                isPlayerBullet: false
+            });
+            enemy.lastShot = Date.now();
+        }
+    });
+    
+    // Vérifier les collisions avec les balles
+    bullets.forEach((bullet, bulletIndex) => {
+        enemies.forEach((enemy, enemyIndex) => {
+            if (checkCollision(bullet, enemy)) {
+                bullets.splice(bulletIndex, 1);
+                enemies.splice(enemyIndex, 1);
+                score += 10;
+                killCount++;
+                
+                // Spawn une banane tous les 5 kills
+                if (killCount % 5 === 0) {
+                    spawnHealItem();
+                }
+            }
+        });
     });
 }
