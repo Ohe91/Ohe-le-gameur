@@ -178,12 +178,14 @@ function updateEnemies() {
     });
     
     // Vérifier les collisions avec les balles
-    bullets.forEach((bullet, bulletIndex) => {
+    for (let i = bullets.length - 1; i >= 0; i--) {
+        const bullet = bullets[i];
         if (bullet.isPlayerBullet) {
-            enemies.forEach((enemy, enemyIndex) => {
+            for (let j = enemies.length - 1; j >= 0; j--) {
+                const enemy = enemies[j];
                 if (checkCollision(bullet, enemy)) {
-                    bullets.splice(bulletIndex, 1);
-                    enemies.splice(enemyIndex, 1);
+                    bullets.splice(i, 1);
+                    enemies.splice(j, 1);
                     score += 10;
                     
                     // Réapparition d'un nouvel ennemi après 1 seconde
@@ -200,15 +202,16 @@ function updateEnemies() {
                                 name: randomCharacter,
                                 color: colors[randomCharacter],
                                 initial: randomCharacter[0],
-                                lastShot: 0
+                                lastShot: Date.now()
                             };
                             enemies.push(newEnemy);
                         }
                     }, 1000);
+                    break;
                 }
-            });
+            }
         }
-    });
+    }
 
     // Ajouter un nouvel ennemi toutes les 30 secondes
     const currentTime = Date.now();
@@ -225,7 +228,7 @@ function updateEnemies() {
             name: randomCharacter,
             color: colors[randomCharacter],
             initial: randomCharacter[0],
-            lastShot: 0
+            lastShot: Date.now()
         };
         enemies.push(newEnemy);
         lastEnemySpawn = currentTime;
@@ -336,7 +339,7 @@ function drawPlayer() {
 
     // Dessiner l'image du personnage
     const image = characterImages[player.name];
-    if (image.complete) {
+    if (image && image.complete) {
         const size = PLAYER_SIZE * 2;
         ctx.drawImage(image, player.x - size/2, player.y - size/2, size, size);
     } else {
@@ -392,27 +395,56 @@ function drawBullets() {
 function drawEnemies() {
     enemies.forEach(enemy => {
         if (enemy.health > 0) {
-            // Dessiner le corps de l'ennemi
-            ctx.fillStyle = enemy.color;
-            ctx.fillRect(enemy.x - enemy.width/2, enemy.y - enemy.height/2, enemy.width, enemy.height);
+            // Créer un chemin circulaire pour le clipping
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(enemy.x, enemy.y, PLAYER_SIZE, 0, Math.PI * 2);
+            ctx.clip();
+
+            // Dessiner l'image du personnage
+            const image = characterImages[enemy.name];
+            if (image && image.complete) {
+                const size = PLAYER_SIZE * 2;
+                ctx.drawImage(image, enemy.x - size/2, enemy.y - size/2, size, size);
+            } else {
+                // Fallback si l'image n'est pas chargée
+                ctx.fillStyle = enemy.color;
+                ctx.fill();
+                ctx.fillStyle = '#000';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(enemy.initial, enemy.x, enemy.y);
+            }
+            ctx.restore();
             
-            // Dessiner l'initiale
-            ctx.fillStyle = 'black';
-            ctx.font = '20px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(enemy.initial, enemy.x, enemy.y);
+            // Barre de vie au-dessus du personnage
+            const healthBarWidth = PLAYER_SIZE * 2;
+            const healthBarHeight = 5;
+            const healthBarY = enemy.y - PLAYER_SIZE - 15;
+            
+            // Fond de la barre de vie
+            ctx.fillStyle = '#333';
+            ctx.fillRect(
+                enemy.x - healthBarWidth / 2,
+                healthBarY,
+                healthBarWidth,
+                healthBarHeight
+            );
             
             // Barre de vie
-            const healthBarWidth = 50;
-            const healthBarHeight = 5;
-            const healthPercentage = enemy.health / 100;
+            ctx.fillStyle = enemy.health > 30 ? '#0f0' : '#f00';
+            ctx.fillRect(
+                enemy.x - healthBarWidth / 2,
+                healthBarY,
+                healthBarWidth * (enemy.health / 100),
+                healthBarHeight
+            );
             
-            ctx.fillStyle = 'red';
-            ctx.fillRect(enemy.x - healthBarWidth/2, enemy.y - enemy.height/2 - 10, healthBarWidth, healthBarHeight);
-            
-            ctx.fillStyle = 'green';
-            ctx.fillRect(enemy.x - healthBarWidth/2, enemy.y - enemy.height/2 - 10, healthBarWidth * healthPercentage, healthBarHeight);
+            // Nom du personnage
+            ctx.fillStyle = '#fff';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(enemy.name, enemy.x, healthBarY - 5);
         }
     });
 }
