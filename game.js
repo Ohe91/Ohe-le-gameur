@@ -28,6 +28,7 @@ let lastDifficultyIncrease = 0;
 let gameStartTime = 0;
 let items = [];
 let killCount = 0;
+let lastEnemySpawn = 0;
 
 // Chargement des images
 const characterImages = {
@@ -192,6 +193,20 @@ function updateEnemies() {
         if (checkCollision(enemy, player)) {
             player.health -= 0.5; // Dégâts continus
         }
+
+        // Tir automatique
+        if (!enemy.lastShot) enemy.lastShot = 0;
+        if (Date.now() - enemy.lastShot > 2000) {
+            const angle = Math.atan2(player.y - enemy.y, player.x - enemy.x);
+            bullets.push({
+                x: enemy.x,
+                y: enemy.y,
+                dx: Math.cos(angle) * BULLET_SPEED,
+                dy: Math.sin(angle) * BULLET_SPEED,
+                isPlayerBullet: false
+            });
+            enemy.lastShot = Date.now();
+        }
     });
     
     // Vérifier les collisions avec les balles
@@ -208,10 +223,45 @@ function updateEnemies() {
                     if (killCount % 5 === 0) {
                         spawnHealItem();
                     }
+
+                    // Réapparition d'un nouvel ennemi après 1 seconde
+                    setTimeout(() => {
+                        const availableCharacters = characters.filter(c => c !== selectedCharacter);
+                        const randomCharacter = availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
+                        const newEnemy = {
+                            x: Math.random() < 0.5 ? 0 : canvas.width,
+                            y: Math.random() * canvas.height,
+                            width: PLAYER_SIZE * 2,
+                            height: PLAYER_SIZE * 2,
+                            health: 100,
+                            name: randomCharacter,
+                            lastShot: 0
+                        };
+                        enemies.push(newEnemy);
+                    }, 1000);
                 }
             });
         }
     });
+
+    // Ajouter un nouvel ennemi toutes les 30 secondes
+    const currentTime = Date.now();
+    if (!lastEnemySpawn) lastEnemySpawn = currentTime;
+    if (currentTime - lastEnemySpawn >= 30000) {
+        const availableCharacters = characters.filter(c => c !== selectedCharacter);
+        const randomCharacter = availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
+        const newEnemy = {
+            x: Math.random() < 0.5 ? 0 : canvas.width,
+            y: Math.random() * canvas.height,
+            width: PLAYER_SIZE * 2,
+            height: PLAYER_SIZE * 2,
+            health: 100,
+            name: randomCharacter,
+            lastShot: 0
+        };
+        enemies.push(newEnemy);
+        lastEnemySpawn = currentTime;
+    }
 }
 
 function updateBullets() {
