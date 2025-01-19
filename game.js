@@ -154,6 +154,8 @@ function updatePlayer() {
 function updateEnemies() {
     // Déplacement des ennemis
     enemies.forEach(enemy => {
+        if (enemy.health <= 0) return; // Skip les ennemis morts
+
         const dx = player.x - enemy.x;
         const dy = player.y - enemy.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
@@ -190,19 +192,23 @@ function updateEnemies() {
                 const enemy = enemies[j];
                 if (checkCollision(bullet, enemy)) {
                     bullets.splice(i, 1);
-                    enemies.splice(j, 1);
-                    score += 10;
-                    
-                    // Réapparition d'un nouvel ennemi après 1 seconde
-                    setTimeout(() => {
-                        if (!gameOver) {
-                            const availableCharacters = characters.filter(c => c !== selectedCharacter);
-                            const randomCharacter = availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
-                            const newEnemy = createEnemy(randomCharacter);
-                            console.log('Spawning new enemy:', newEnemy);
-                            enemies.push(newEnemy);
-                        }
-                    }, 1000);
+                    enemy.health -= 34; // 3 coups pour tuer un ennemi
+
+                    if (enemy.health <= 0) {
+                        enemies.splice(j, 1);
+                        score += 10;
+                        
+                        // Réapparition d'un nouvel ennemi après 1 seconde
+                        setTimeout(() => {
+                            if (!gameOver) {
+                                const availableCharacters = characters.filter(c => c !== selectedCharacter);
+                                const randomCharacter = availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
+                                const newEnemy = createEnemy(randomCharacter);
+                                console.log('Spawning new enemy:', newEnemy);
+                                enemies.push(newEnemy);
+                            }
+                        }, 1000);
+                    }
                     break;
                 }
             }
@@ -381,6 +387,8 @@ function drawBullets() {
 
 function drawEnemies() {
     enemies.forEach(enemy => {
+        if (enemy.health <= 0) return; // Ne pas dessiner les ennemis morts
+
         // Dessiner le cercle de base
         ctx.beginPath();
         ctx.arc(enemy.x, enemy.y, PLAYER_SIZE, 0, Math.PI * 2);
