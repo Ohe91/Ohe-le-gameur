@@ -80,6 +80,24 @@
             font-size: 18px;
             margin: 0;
         }
+        #tryAgainButton {
+            display: none;
+            position: absolute;
+            top: 70%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 15px 30px;
+            font-size: 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        #tryAgainButton:hover {
+            background-color: #45a049;
+        }
     </style>
 </head>
 <body>
@@ -113,6 +131,7 @@
         </div>
     </div>
     <canvas id="gameCanvas"></canvas>
+    <button id="tryAgainButton">Try Again</button>
     <script src="game.js"></script>
 </body>
 </html>

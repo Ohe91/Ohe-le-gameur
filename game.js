@@ -1,6 +1,7 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const characterSelect = document.getElementById('characterSelect');
+const tryAgainButton = document.getElementById('tryAgainButton');
 
 // Configuration du canvas
 canvas.width = 1200;
@@ -51,45 +52,95 @@ const colors = {
     'Flouzi': '#FFFF44'
 };
 
-// Création du bouton Try Again
-const tryAgainButton = document.createElement('button');
-tryAgainButton.textContent = 'Try Again';
-tryAgainButton.style.position = 'absolute';
-tryAgainButton.style.bottom = '20px';
-tryAgainButton.style.left = '50%';
-tryAgainButton.style.transform = 'translateX(-50%)';
-tryAgainButton.style.padding = '10px 20px';
-tryAgainButton.style.fontSize = '20px';
-tryAgainButton.style.backgroundColor = '#4CAF50';
-tryAgainButton.style.color = 'white';
-tryAgainButton.style.border = 'none';
-tryAgainButton.style.borderRadius = '5px';
-tryAgainButton.style.cursor = 'pointer';
 tryAgainButton.style.display = 'none';
-document.body.appendChild(tryAgainButton);
 
-tryAgainButton.addEventListener('click', () => {
-    gameOver = false;
+function startGame() {
+    gameStarted = true;
+    characterSelect.classList.add('hidden');
     tryAgainButton.style.display = 'none';
-    resetGame();
-});
+    gameOver = false;
+    player.health = 100;
+    score = 0;
+    killCount = 0;
+    enemies = [];
+    bullets = [];
+    items = [];
+    
+    // Spawn initial enemies
+    for (let i = 0; i < 3; i++) {
+        const availableCharacters = characters.filter(c => c !== selectedCharacter);
+        const randomCharacter = availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
+        const newEnemy = {
+            x: Math.random() < 0.5 ? 0 : canvas.width,
+            y: Math.random() * canvas.height,
+            width: PLAYER_SIZE * 2,
+            height: PLAYER_SIZE * 2,
+            health: 100,
+            name: randomCharacter,
+            lastShot: 0,
+            color: '#ff0000',
+            initial: randomCharacter[0]
+        };
+        enemies.push(newEnemy);
+    }
+    
+    gameLoop();
+}
 
 function resetGame() {
-    // Réinitialiser le joueur
+    gameOver = false;
     player.health = 100;
-    player.x = canvas.width / 2;
-    player.y = canvas.height / 2;
     score = 0;
-
-    // Réinitialiser les ennemis
-    const remainingCharacters = characters.filter(c => c !== selectedCharacter);
-    enemies = remainingCharacters.map(enemyName => createEnemy(enemyName));
-    
-    // Réinitialiser les balles
+    killCount = 0;
+    enemies = [];
     bullets = [];
+    items = [];
+    lastEnemySpawn = Date.now();
+    tryAgainButton.style.display = 'none';
     
-    // Redémarrer le jeu
+    // Spawn initial enemies
+    for (let i = 0; i < 3; i++) {
+        const availableCharacters = characters.filter(c => c !== selectedCharacter);
+        const randomCharacter = availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
+        const newEnemy = {
+            x: Math.random() < 0.5 ? 0 : canvas.width,
+            y: Math.random() * canvas.height,
+            width: PLAYER_SIZE * 2,
+            height: PLAYER_SIZE * 2,
+            health: 100,
+            name: randomCharacter,
+            lastShot: 0,
+            color: '#ff0000',
+            initial: randomCharacter[0]
+        };
+        enemies.push(newEnemy);
+    }
+    
     gameLoop();
+}
+
+tryAgainButton.addEventListener('click', resetGame);
+
+function selectCharacter(character) {
+    selectedCharacter = character;
+    const remainingCharacters = characters.filter(c => c !== character);
+    
+    // Création du joueur
+    player = {
+        x: canvas.width / 2,
+        y: canvas.height / 2,
+        color: colors[character],
+        name: character,
+        initial: character[0],
+        health: 100,
+        dx: 0,
+        dy: 0
+    };
+
+    // Création des ennemis initiaux
+    enemies = remainingCharacters.map(enemyName => createEnemy(enemyName));
+
+    startGame();
 }
 
 function createEnemy(enemyName) {
@@ -141,33 +192,6 @@ function createEnemy(enemyName) {
             y: Math.random() * 2 - 1
         }
     };
-}
-
-function selectCharacter(character) {
-    selectedCharacter = character;
-    const remainingCharacters = characters.filter(c => c !== character);
-    
-    // Création du joueur
-    player = {
-        x: canvas.width / 2,
-        y: canvas.height / 2,
-        color: colors[character],
-        name: character,
-        initial: character[0],
-        health: 100,
-        dx: 0,
-        dy: 0
-    };
-
-    // Création des ennemis initiaux
-    enemies = remainingCharacters.map(enemyName => createEnemy(enemyName));
-
-    characterSelect.classList.add('hidden');
-    gameStarted = true;
-    score = 0;
-    gameStartTime = Date.now();
-    lastDifficultyIncrease = gameStartTime;
-    gameLoop();
 }
 
 function updatePlayer() {
@@ -580,44 +604,38 @@ function showScoreboard() {
         ctx.fillText(date, boardX + 320, y);
     });
 
-    // Afficher le bouton Try Again
+    // Sauvegarder le score et afficher le bouton Try Again
+    saveScore(player.name, score);
     tryAgainButton.style.display = 'block';
 }
 
-function resetGame() {
-    gameOver = false;
-    player.health = 100;
-    score = 0;
-    killCount = 0;
-    enemies = [];
-    bullets = [];
-    items = [];
-    lastEnemySpawn = 0;
-    tryAgainButton.style.display = 'none';
-    
-    // Spawn initial enemies
-    for (let i = 0; i < 3; i++) {
-        const availableCharacters = characters.filter(c => c !== selectedCharacter);
-        const randomCharacter = availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
-        const newEnemy = {
-            x: Math.random() < 0.5 ? 0 : canvas.width,
-            y: Math.random() * canvas.height,
-            width: PLAYER_SIZE * 2,
-            height: PLAYER_SIZE * 2,
-            health: 100,
-            name: randomCharacter,
-            lastShot: 0,
-            color: '#ff0000',
-            initial: randomCharacter[0]
-        };
-        enemies.push(newEnemy);
-    }
-    
-    gameLoop();
+function saveScore(playerName, score) {
+    highScores.push({ name: playerName, score: score, date: new Date().toISOString() });
+    highScores.sort((a, b) => b.score - a.score);
+    highScores = highScores.slice(0, 10); // Garder uniquement les 10 meilleurs scores
+
+    fetch('scores.json', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(highScores)
+    }).catch(error => {
+        console.error('Erreur lors de la sauvegarde des scores:', error);
+    });
 }
 
-// Ajouter l'événement au bouton Try Again
-tryAgainButton.addEventListener('click', resetGame);
+function spawnHealItem() {
+    const item = {
+        x: Math.random() * (canvas.width - 30),
+        y: Math.random() * (canvas.height - 30),
+        width: 30,
+        height: 30,
+        type: 'heal',
+        healAmount: 25
+    };
+    items.push(item);
+}
 
 // Gestion des touches
 const keys = {};
@@ -676,31 +694,3 @@ fetch('scores.json')
     .catch(error => {
         console.error('Erreur lors du chargement des scores:', error);
     });
-
-function saveScore(playerName, score) {
-    highScores.push({ name: playerName, score: score, date: new Date().toISOString() });
-    highScores.sort((a, b) => b.score - a.score);
-    highScores = highScores.slice(0, 10); // Garder uniquement les 10 meilleurs scores
-
-    fetch('scores.json', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(highScores)
-    }).catch(error => {
-        console.error('Erreur lors de la sauvegarde des scores:', error);
-    });
-}
-
-function spawnHealItem() {
-    const item = {
-        x: Math.random() * (canvas.width - 30),
-        y: Math.random() * (canvas.height - 30),
-        width: 30,
-        height: 30,
-        type: 'heal',
-        healAmount: 25
-    };
-    items.push(item);
-}
