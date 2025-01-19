@@ -128,6 +128,8 @@ function createEnemy(enemyName) {
     return {
         x: Math.random() < 0.5 ? 0 : canvas.width,
         y: Math.random() * canvas.height,
+        width: PLAYER_SIZE * 2,
+        height: PLAYER_SIZE * 2,
         health: 100,
         name: enemyName,
         color: colors[enemyName],
