@@ -1,4 +1,4 @@
-# 2D Shooter Game
+# Ohe le Gameur
 
 Un jeu de tir 2D multijoueur avec des personnages uniques et des mécaniques de jeu intéressantes.
 
