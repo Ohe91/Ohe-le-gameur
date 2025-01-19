@@ -11,6 +11,7 @@ Un jeu de tir 2D multijoueur avec des personnages uniques et des mécaniques de 
 - Barre de vie dynamique
 - Collisions réalistes entre les personnages
 - Respawn automatique des ennemis
+- Items de soin (bananes) qui apparaissent tous les 5 kills et restaurent 25 PV
 
 ## Comment jouer
 
@@ -20,6 +21,7 @@ Un jeu de tir 2D multijoueur avec des personnages uniques et des mécaniques de 
 4. Utilisez ZQSD ou les flèches pour vous déplacer
 5. Cliquez pour tirer
 6. Survivez le plus longtemps possible pour faire le meilleur score !
+7. Récupérez les bananes pour vous soigner
 
 ## Contrôles
 
