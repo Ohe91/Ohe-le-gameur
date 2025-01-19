@@ -42,7 +42,9 @@ const sounds = {
     explosion: new Audio('sounds/explosion.mp3'),
     powerUp: new Audio('sounds/powerup.mp3'),
     enemyShoot: new Audio('sounds/enemy-laser.mp3'),
-    ambience: new Audio('sounds/ambience.mp3')
+    ambience: new Audio('sounds/ambience.mp3'),
+    popboss: new Audio('sounds/popboss.mp3'),
+    hitboss: new Audio('sounds/hitboss.mp3')
 };
 
 // Configuration des sons
@@ -53,6 +55,8 @@ sounds.hit.volume = 0.5;
 sounds.explosion.volume = 0.5;
 sounds.powerUp.volume = 0.5;
 sounds.enemyShoot.volume = 0.5;
+sounds.popboss.volume = 0.6;
+sounds.hitboss.volume = 0.5;
 
 // État du son
 let isSoundMuted = false;
@@ -136,7 +140,7 @@ characterImages['Bilel'].src = 'assets/Bilel.jpg';
 characterImages['Abdel'].src = 'assets/Abdel.jpg';
 characterImages['Flouzi'].src = 'assets/Flouzi.jpg';
 characterImages['Elies'].src = 'assets/Elies.jpg';
-characterImages['boss'].src = 'assets/boss.jpg';
+characterImages['boss'].src = 'assets/boss.png';
 
 const characters = ['Ohe', 'Bilel', 'Abdel', 'Flouzi', 'Elies'];
 const characterColors = {
@@ -357,6 +361,7 @@ function updateEnemies() {
         if (BOSS_ROUNDS.includes(currentRound)) {
             isBossRound = true;
             boss = createBoss();
+            playSound('popboss'); // Jouer le son d'apparition du boss
         } else {
             isBossRound = false;
             boss = null;
@@ -544,7 +549,7 @@ function updateBullets() {
         if (boss && !bullet.fromEnemy && checkCollision(bullet, boss)) {
             boss.health--;
             bullets.splice(i, 1);
-            playSound('hit');
+            playSound('hitboss'); // Jouer le son quand le boss est touché
             
             // Si le boss est vaincu
             if (boss.health <= 0) {
