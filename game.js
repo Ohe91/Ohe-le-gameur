@@ -125,7 +125,7 @@ function selectCharacter(character) {
 }
 
 function createEnemy(enemyName) {
-    return {
+    const enemy = {
         x: Math.random() < 0.5 ? 0 : canvas.width,
         y: Math.random() * canvas.height,
         width: PLAYER_SIZE * 2,
@@ -140,6 +140,8 @@ function createEnemy(enemyName) {
             y: Math.random() * 2 - 1
         }
     };
+    console.log("Created enemy:", enemy); // Debug log
+    return enemy;
 }
 
 function updatePlayer() {
@@ -203,7 +205,9 @@ function updateEnemies() {
                         if (!gameOver) {
                             const availableCharacters = characters.filter(c => c !== selectedCharacter);
                             const randomCharacter = availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
+                            console.log("Spawning new enemy:", randomCharacter); // Debug log
                             const newEnemy = createEnemy(randomCharacter);
+                            console.log("New enemy:", newEnemy); // Debug log
                             enemies.push(newEnemy);
                         }
                     }, 1000);
@@ -389,58 +393,29 @@ function drawBullets() {
 
 function drawEnemies() {
     enemies.forEach(enemy => {
-        if (enemy.health > 0) {
-            // Créer un chemin circulaire pour le clipping
-            ctx.save();
-            ctx.beginPath();
-            ctx.arc(enemy.x, enemy.y, PLAYER_SIZE, 0, Math.PI * 2);
-            ctx.clip();
-
-            // Dessiner l'image du personnage
-            const image = characterImages[enemy.name];
-            if (image.complete) {
-                const size = PLAYER_SIZE * 2;
-                ctx.drawImage(image, enemy.x - size/2, enemy.y - size/2, size, size);
-            } else {
-                // Fallback si l'image n'est pas chargée
-                ctx.fillStyle = enemy.color;
-                ctx.fill();
-                ctx.fillStyle = '#000';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(enemy.initial, enemy.x, enemy.y);
-            }
-            ctx.restore();
-            
-            // Barre de vie au-dessus du personnage
-            const healthBarWidth = PLAYER_SIZE * 2;
-            const healthBarHeight = 5;
-            const healthBarY = enemy.y - PLAYER_SIZE - 15;
-            
-            // Fond de la barre de vie
-            ctx.fillStyle = '#333';
-            ctx.fillRect(
-                enemy.x - healthBarWidth / 2,
-                healthBarY,
-                healthBarWidth,
-                healthBarHeight
-            );
-            
-            // Barre de vie
-            ctx.fillStyle = enemy.health > 30 ? '#0f0' : '#f00';
-            ctx.fillRect(
-                enemy.x - healthBarWidth / 2,
-                healthBarY,
-                healthBarWidth * (enemy.health / 100),
-                healthBarHeight
-            );
-            
-            // Nom du personnage
-            ctx.fillStyle = '#fff';
-            ctx.font = '12px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText(enemy.name, enemy.x, healthBarY - 5);
-        }
+        // Dessiner le corps de l'ennemi
+        ctx.fillStyle = enemy.color || colors[enemy.name];
+        ctx.fillRect(enemy.x - enemy.width/2, enemy.y - enemy.height/2, enemy.width, enemy.height);
+        
+        // Dessiner l'initiale
+        ctx.fillStyle = 'black';
+        ctx.font = '20px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(enemy.initial, enemy.x, enemy.y);
+        
+        // Dessiner la barre de vie
+        const healthBarWidth = 50;
+        const healthBarHeight = 5;
+        const healthPercentage = enemy.health / 100;
+        
+        // Fond de la barre de vie
+        ctx.fillStyle = 'red';
+        ctx.fillRect(enemy.x - healthBarWidth/2, enemy.y - enemy.height/2 - 10, healthBarWidth, healthBarHeight);
+        
+        // Barre de vie actuelle
+        ctx.fillStyle = 'green';
+        ctx.fillRect(enemy.x - healthBarWidth/2, enemy.y - enemy.height/2 - 10, healthBarWidth * healthPercentage, healthBarHeight);
     });
 }
 
