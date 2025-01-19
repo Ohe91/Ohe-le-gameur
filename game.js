@@ -226,18 +226,22 @@ function updateEnemies() {
 
                     // Réapparition d'un nouvel ennemi après 1 seconde
                     setTimeout(() => {
-                        const availableCharacters = characters.filter(c => c !== selectedCharacter);
-                        const randomCharacter = availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
-                        const newEnemy = {
-                            x: Math.random() < 0.5 ? 0 : canvas.width,
-                            y: Math.random() * canvas.height,
-                            width: PLAYER_SIZE * 2,
-                            height: PLAYER_SIZE * 2,
-                            health: 100,
-                            name: randomCharacter,
-                            lastShot: 0
-                        };
-                        enemies.push(newEnemy);
+                        if (!gameOver) {
+                            const availableCharacters = characters.filter(c => c !== selectedCharacter);
+                            const randomCharacter = availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
+                            const newEnemy = {
+                                x: Math.random() < 0.5 ? 0 : canvas.width,
+                                y: Math.random() * canvas.height,
+                                width: PLAYER_SIZE * 2,
+                                height: PLAYER_SIZE * 2,
+                                health: 100,
+                                name: randomCharacter,
+                                lastShot: 0,
+                                color: '#ff0000',
+                                initial: randomCharacter[0]
+                            };
+                            enemies.push(newEnemy);
+                        }
                     }, 1000);
                 }
             });
@@ -247,7 +251,7 @@ function updateEnemies() {
     // Ajouter un nouvel ennemi toutes les 30 secondes
     const currentTime = Date.now();
     if (!lastEnemySpawn) lastEnemySpawn = currentTime;
-    if (currentTime - lastEnemySpawn >= 30000) {
+    if (currentTime - lastEnemySpawn >= 30000 && !gameOver) {
         const availableCharacters = characters.filter(c => c !== selectedCharacter);
         const randomCharacter = availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
         const newEnemy = {
@@ -257,7 +261,9 @@ function updateEnemies() {
             height: PLAYER_SIZE * 2,
             health: 100,
             name: randomCharacter,
-            lastShot: 0
+            lastShot: 0,
+            color: '#ff0000',
+            initial: randomCharacter[0]
         };
         enemies.push(newEnemy);
         lastEnemySpawn = currentTime;
@@ -354,10 +360,13 @@ function gameLoop() {
     
     if (player.health <= 0) {
         showScoreboard();
+        saveScore(player.name, score);
         return;
     }
     
-    requestAnimationFrame(gameLoop);
+    if (!gameOver) {
+        requestAnimationFrame(gameLoop);
+    }
 }
 
 function drawPlayer() {
@@ -511,6 +520,7 @@ function checkItemCollision() {
 }
 
 function showScoreboard() {
+    gameOver = true;
     const boardWidth = 400;
     const boardHeight = 500;
     const boardX = (canvas.width - boardWidth) / 2;
@@ -569,7 +579,45 @@ function showScoreboard() {
         ctx.fillText(scoreData.score, boardX + 250, y);
         ctx.fillText(date, boardX + 320, y);
     });
+
+    // Afficher le bouton Try Again
+    tryAgainButton.style.display = 'block';
 }
+
+function resetGame() {
+    gameOver = false;
+    player.health = 100;
+    score = 0;
+    killCount = 0;
+    enemies = [];
+    bullets = [];
+    items = [];
+    lastEnemySpawn = 0;
+    tryAgainButton.style.display = 'none';
+    
+    // Spawn initial enemies
+    for (let i = 0; i < 3; i++) {
+        const availableCharacters = characters.filter(c => c !== selectedCharacter);
+        const randomCharacter = availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
+        const newEnemy = {
+            x: Math.random() < 0.5 ? 0 : canvas.width,
+            y: Math.random() * canvas.height,
+            width: PLAYER_SIZE * 2,
+            height: PLAYER_SIZE * 2,
+            health: 100,
+            name: randomCharacter,
+            lastShot: 0,
+            color: '#ff0000',
+            initial: randomCharacter[0]
+        };
+        enemies.push(newEnemy);
+    }
+    
+    gameLoop();
+}
+
+// Ajouter l'événement au bouton Try Again
+tryAgainButton.addEventListener('click', resetGame);
 
 // Gestion des touches
 const keys = {};
